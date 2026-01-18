@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About Our ASL Trainer</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-color: #ffffff;
+      --text-color: #111111;
+      --accent-color: #3e9af6;
+      --card-bg: #f5f5f5;
+      --button-bg: #3e9af6;
+      --button-color: #ffffff;
+      --particle-color: rgb(255, 255, 255);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #121212;
+        --text-color: #e0e0e0;
+        --accent-color: #6753ff;
+        --card-bg: #1e1e1e;
+        --button-bg: #6753ff;
+        --button-color: #121212;
+        --particle-color: rgb(255, 255, 255);
+      }
+    }
+
+    body {
+      font-family: 'Google Sans', system-ui, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      line-height: 2;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    header {
+      position: relative;
+      background-color: var(--accent-color);
+      color: var(--button-color);
+      padding: 80px 20px 60px 20px;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    /* Particle canvas */
+    #particle-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    header h1 {
+      margin: 0;
+      font-weight: 800;
+      font-size: 5rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    header p {
+      font-weight: 400;
+      font-size: 1.2rem;
+      margin-top: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    main {
+      max-width: 1000px;
+      margin: 40px auto;
+      padding: 0 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    section {
+      margin-bottom: 40px;
+    }
+
+    section h2 {
+      font-weight: 500;
+      margin-bottom: 16px;
+      border-bottom: 2px solid var(--accent-color);
+      display: inline-block;
+      padding-bottom: 4px;
+    }
+
+    section p {
+      margin-bottom: 12px;
+    }
+
+    .feature-card {
+      background-color: var(--card-bg);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(23, 1, 72, 0.678);
+      margin-bottom: 20px;
+      transition: background-color 0.3s;
+    }
+
+    .feature-card h3 {
+      margin-top: 0;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 0.9rem;
+      color: var(--text-color);
+      border-top: 1px solid rgba(0,0,0,0.1);
+    }
+
+    a.button {
+      display: inline-block;
+      padding: 12px 24px;
+      font-weight: 500;
+      border-radius: 8px;
+      background-color: var(--button-bg);
+      color: var(--button-color);
+      text-decoration: none;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    a.button:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <canvas id="particle-canvas"></canvas>
+    <h1>About ASLingo</h1>
+    <p>Empowering communication through sign language technology</p>
+  </header>
+
+  <main>
+    <!-- Our Story -->
+    <section>
+      <h2>About Us</h2>
+      <p>Our journey started with a simple idea: to make learning American Sign Language (ASL) accessible to everyone. We were inspired by the film A Sound of Metal to come up with a way to bridge the communication gap that leaves individuals with heading-imparities at a disadvantage in society.</p>
+      <p>By leveraging MediaPipe Hands and real-time webcam feedback, our AI trained ASL Trainer allows learners to practice gestures and receive instant visual feedback, making the learning experience interactive and fun while they achieve a meaningful goal of being able to communicate without using their voice.</p>
+    </section>
+
+    <!-- Our Mission -->
+    <section>
+      <h2>Our Mission</h2>
+      <p>We aim to bridge communication gaps, empower individuals, and foster understanding between the hearing and Deaf communities. Learning ASL should be easy, engaging, and available to anyone with a computer or webcam.</p>
+    </section>
+
+    <!-- Features -->
+    <section>
+      <h2>Key Features</h2>
+      <div class="feature-card">
+        <h3>Real-Time Hand Tracking</h3>
+        <p>Practice ASL gestures with live feedback as the system tracks each finger and wrist accurately using your webcam.</p>
+      </div>
+      <div class="feature-card">
+        <h3>Dark & Light Mode Support</h3>
+        <p>The interface adapts to your preferred system theme for a comfortable learning experience day or night.</p>
+      </div>
+      <div class="feature-card">
+        <h3>Interactive Learning</h3>
+        <p>Engage with exercises and see your progress instantly, making it easier to master the ASL alphabet and gestures.</p>
+      </div>
+    </section>
+
+    <!-- Call to Action -->
+    <section>
+      <h2>Get Started</h2>
+      <p>Ready to dive in? Start practicing with our ASL Trainer today and take the first step toward becoming fluent in sign language.</p>
+      <a href="index.html" class="button">Start Learning</a>
+    </section>
+  </main>
+
+  <footer>
+    &copy; 2026 ASL Trainer. All rights reserved.
+  </footer>
+
+  <script>
+    // Simple floating particle animation
+    const canvas = document.getElementById('particle-canvas');
+    const ctx = canvas.getContext('2d');
+
+    let particlesArray;
+    const maxParticles = 80;
+
+    function initCanvas() {
+      canvas.width = header.offsetWidth;
+      canvas.height = header.offsetHeight;
+
+      particlesArray = [];
+      for (let i = 0; i < maxParticles; i++) {
+        particlesArray.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          radius: Math.random() * 3 + 1,
+          dx: (Math.random() - 0.5) * 0.5,
+          dy: (Math.random() - 0.5) * 0.5,
+        });
+      }
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--particle-color');
+
+      particlesArray.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
+        ctx.fill();
+        p.x += p.dx;
+        p.y += p.dy;
+
+        if (p.x < 0 || p.x > canvas.width) p.dx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
+      });
+
+      requestAnimationFrame(animateParticles);
+    }
+
+    const header = document.querySelector('header');
+    initCanvas();
+    animateParticles();
+
+    window.addEventListener('resize', () => {
+      initCanvas();
+    });
+  </script>
+
+</body>
+</html>
