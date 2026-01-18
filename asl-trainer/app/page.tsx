@@ -57,7 +57,7 @@ export default function HomeLanding() {
 
   return {
     letter: upper,
-    img: `/ASL/${lower}.png`,
+    img: `/assets/letters/${lower}.png`,
   }
 })
 
