@@ -13,21 +13,25 @@
     pre { background: #f5f5f5; padding: 10px; border-radius: 8px; white-space: pre-wrap; }
   </style>
 
-  <!-- MediaPipe libraries (CDN) -->
+  <!-- MediaPipe libraries (CDN) --> 
+  <!--This imports the library for hand skeleton assignment-->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+
 </head>
 <body>
+  <!--We work on the body of the website, where the webcam imput is shown.-->
   <h2>Webcam + Hand Tracking (MediaPipe Hands)</h2>
   <p>Click <b>Start Camera</b>. If you see the hand skeleton, tracking works.</p>
-
+  <!--Once we press the start camera button, we can take webcam input for the website. We feed this input into the hand skeleton drawings-->
   <button id="startBtn">Start Camera</button>
   <span id="status" style="margin-left:10px;">Status: idle</span>
 
   <div class="row" style="margin-top:16px;">
-    <video class="input_video" playsinline></video>
-    <canvas class="output_canvas" width="640" height="480"></canvas>
+    <video class="input_video" playsinline></video> <!--Input video is the raw video-->
+    <canvas class="output_canvas" width="640" height="480"></canvas> <!--Canvas is the skeleton hand-->
   </div>
 
   <h3>Debug</h3>
