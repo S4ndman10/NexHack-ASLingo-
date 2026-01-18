@@ -13,7 +13,6 @@ async function startCamera() {
 
     video.srcObject = stream;
 
-    // Wait for metadata so canvas matches video
     await new Promise((resolve) => {
       video.onloadedmetadata = () => resolve();
     });
@@ -21,15 +20,17 @@ async function startCamera() {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
+    video.play();
+
     startRoboflowStream();
   } catch (err) {
     console.error("Webcam error:", err);
-    alert("Cannot access webcam. Check permissions.");
+    alert("Cannot access webcam: " + err.message);
   }
 }
 
 async function startRoboflowStream() {
-  // Connect via server proxy
+  // Connect via your backend proxy
   const connector = connectors.withProxyUrl("/api/init-webrtc");
 
   const wrtcParams = {
@@ -43,7 +44,6 @@ async function startRoboflowStream() {
   await streams.useStream(video, connector, {
     wrtcParams,
     onData: (data) => {
-      // data.predictions = keypoints
       if (data.predictions) drawPredictions(data.predictions);
     }
   });
@@ -55,21 +55,19 @@ function drawPredictions(predictions) {
   let detectedLetter = null;
 
   predictions.forEach((pred) => {
-    // Draw keypoints
-    if (pred.x && pred.y) {
+    if (pred.x !== undefined && pred.y !== undefined) {
       const x = pred.x * canvas.width;
       const y = pred.y * canvas.height;
+
       ctx.fillStyle = "red";
       ctx.beginPath();
       ctx.arc(x, y, 5, 0, 2 * Math.PI);
       ctx.fill();
     }
 
-    // Optional: if your model outputs letter per frame
     if (pred.class) detectedLetter = pred.class;
   });
 
-  // Draw the detected letter
   if (detectedLetter) {
     ctx.fillStyle = "yellow";
     ctx.font = "48px sans-serif";
