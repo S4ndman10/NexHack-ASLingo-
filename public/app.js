@@ -1,0 +1,79 @@
+import dotenv from "dotenv";
+dotenv.config();
+
+const video = document.getElementById("video");
+const canvas = document.getElementById("overlay");
+const ctx = canvas.getContext("2d");
+
+// Initialize Roboflow
+const rf = new Roboflow({
+  apiKey: rf_IQAF0vHn2NTLZ90T2O4OD5wwGXX2 // from .env
+});
+
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+    video.srcObject = stream;
+    await new Promise(resolve => (video.onloadedmetadata = resolve));
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    video.play();
+    startRoboflow();
+  } catch (err) {
+    console.error("Webcam error:", err);
+    alert("Cannot access webcam: " + err.message);
+  }
+}
+
+async function startRoboflow() {
+  try {
+    const model = await rf.load({
+      model: "sign-language-igzel-nghdm",
+      version: 1
+    });
+
+    console.log("Roboflow model loaded!");
+
+    // Continuously run predictions on webcam
+    const predictLoop = async () => {
+      const predictions = await model.detect(video);
+
+      drawPredictions(predictions);
+      requestAnimationFrame(predictLoop);
+    };
+
+    predictLoop();
+  } catch (err) {
+    console.error("Roboflow load/detect error:", err);
+  }
+}
+
+function drawPredictions(predictions) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  let detectedLetter = null;
+
+  predictions.forEach(pred => {
+    if (pred.x !== undefined && pred.y !== undefined) {
+      const x = pred.x * canvas.width;
+      const y = pred.y * canvas.height;
+      ctx.fillStyle = "red";
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (pred.class) detectedLetter = pred.class;
+  });
+
+  if (detectedLetter) {
+    ctx.fillStyle = "yellow";
+    ctx.font = "48px sans-serif";
+    ctx.fillText(detectedLetter, 20, 50);
+  }
+}
+
+// Start the webcam + inference
+startCamera();
