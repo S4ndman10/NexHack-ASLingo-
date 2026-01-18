@@ -6,19 +6,14 @@ const ctx = canvas.getContext("2d");
 
 async function startCamera() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 640, height: 480 },
-      audio: false
-    });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
     video.srcObject = stream;
-
-    await new Promise((resolve) => (video.onloadedmetadata = resolve));
+    await new Promise(resolve => (video.onloadedmetadata = resolve));
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
     video.play();
-
     startRoboflow();
   } catch (err) {
     console.error("Webcam error:", err);
@@ -39,9 +34,10 @@ async function startRoboflow() {
 
   await streams.useStream(video, connector, {
     wrtcParams,
-    onData: (data) => {
+    onData: data => {
       if (data.predictions) drawPredictions(data.predictions);
-    }
+    },
+    onError: err => console.error("Roboflow stream error:", err)
   });
 }
 
@@ -50,17 +46,15 @@ function drawPredictions(predictions) {
 
   let detectedLetter = null;
 
-  predictions.forEach((pred) => {
+  predictions.forEach(pred => {
     if (pred.x !== undefined && pred.y !== undefined) {
       const x = pred.x * canvas.width;
       const y = pred.y * canvas.height;
-
       ctx.fillStyle = "red";
       ctx.beginPath();
-      ctx.arc(x, y, 5, 0, 2 * Math.PI);
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
       ctx.fill();
     }
-
     if (pred.class) detectedLetter = pred.class;
   });
 
@@ -71,4 +65,5 @@ function drawPredictions(predictions) {
   }
 }
 
+// Start everything
 startCamera();
