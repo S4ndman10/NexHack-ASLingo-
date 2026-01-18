@@ -4,130 +4,464 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Webcam + Hand Tracking (MediaPipe Hands)</title>
+  <title>ASLingo</title>
   <style>
-    body { font-family: system-ui, Arial; margin: 16px; }
-    .row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
-    video, canvas { width: 640px; height: 480px; background: #111; border-radius: 8px; }
-    .input_video { display: none; }
-    button { padding: 10px 14px; font-size: 14px; cursor: pointer; }
-    pre { background: #f5f5f5; padding: 10px; border-radius: 8px; white-space: pre-wrap; }
+    :root {
+      color-scheme: dark;
+      --bg: #05060a;
+      --bg-accent: #0d101f;
+      --accent: #ffb347;
+      --accent-soft: #ffd58a;
+      --accent-alt: #66e0ff;
+      --text-main: #f7f7ff;
+      --text-muted: #a5a7c2;
+      --border-soft: rgba(255, 255, 255, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(255, 179, 71, 0.18), transparent 55%),
+        radial-gradient(circle at 100% 0%, rgba(102, 224, 255, 0.16), transparent 55%),
+        radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.03), transparent 60%),
+        var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 1080px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(5, 6, 10, 0.95));
+      border-radius: 24px;
+      border: 1px solid var(--border-soft);
+      box-shadow:
+        0 22px 45px rgba(0, 0, 0, 0.75),
+        0 0 0 1px rgba(255, 255, 255, 0.02);
+      padding: 28px 26px 24px;
+      backdrop-filter: blur(22px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr);
+      gap: 28px;
+    }
+
+    @media (max-width: 900px) {
+      .shell {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .hero-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      justify-content: center;
+    }
+
+    h2 {
+      font-size: clamp(2rem, 3vw, 2.8rem);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-main);
+    }
+
+    .headline-accent {
+      display: inline-block;
+      font-weight: 650;
+      font-size: 0.78rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent-soft);
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: radial-gradient(circle at 0 0, rgba(255, 255, 255, 0.12), transparent 55%);
+      margin-bottom: 6px;
+    }
+
+    p {
+      font-size: 0.98rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+      max-width: 30rem;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 16px;
+      margin-top: 6px;
+    }
+
+    .toggle-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      margin-top: 10px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .toggle-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .toggle-row input {
+      accent-color: var(--accent);
+    }
+
+    button {
+      padding: 10px 18px;
+      font-size: 0.92rem;
+      font-weight: 550;
+      cursor: pointer;
+      border-radius: 999px;
+      border: none;
+      color: #05060a;
+      background: linear-gradient(135deg, var(--accent), var(--accent-alt));
+      box-shadow:
+        0 12px 28px rgba(0, 0, 0, 0.75),
+        0 0 0 1px rgba(0, 0, 0, 0.45);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 160ms ease-out, box-shadow 160ms ease-out, filter 160ms ease-out;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+      box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.85),
+        0 0 0 1px rgba(0, 0, 0, 0.5);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow:
+        0 10px 24px rgba(0, 0, 0, 0.75),
+        0 0 0 1px rgba(0, 0, 0, 0.55);
+    }
+
+    #status {
+      font-size: 0.86rem;
+      color: var(--accent-soft);
+    }
+
+    .hand-pills-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .hand-pill {
+      font-size: 0.78rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(102, 224, 255, 0.12);
+      border: 1px solid rgba(102, 224, 255, 0.7);
+      color: var(--accent-soft);
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(circle at 0 0, rgba(102, 224, 255, 0.12), transparent 60%),
+        radial-gradient(circle at 100% 100%, rgba(255, 179, 71, 0.08), transparent 60%),
+        rgba(5, 6, 10, 0.96);
+      border-radius: 24px;
+      padding: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow:
+        0 16px 36px rgba(0, 0, 0, 0.85),
+        0 0 0 1px rgba(0, 0, 0, 0.85);
+      transition: box-shadow 180ms ease-out, border-color 180ms ease-out;
+    }
+
+    .row--active {
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.95),
+        0 0 36px rgba(102, 224, 255, 0.4),
+        0 0 18px rgba(255, 179, 71, 0.35),
+        0 0 0 1px rgba(0, 0, 0, 0.95);
+      border-color: rgba(102, 224, 255, 0.65);
+    }
+
+    video,
+    canvas {
+      display: block;
+      width: 100%;
+      max-width: 640px;
+      height: auto;
+      aspect-ratio: 4 / 3;
+      background: radial-gradient(circle at 0 0, #05060a, #05060a);
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow:
+        0 16px 36px rgba(0, 0, 0, 0.9);
+      transition: box-shadow 180ms ease-out, border-color 180ms ease-out;
+    }
+
+    .output_canvas--active {
+      border-color: rgba(255, 179, 71, 0.7);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.08),
+        0 0 0 1px rgba(255, 179, 71, 0.5),
+        0 0 42px rgba(102, 224, 255, 0.6),
+        0 26px 64px rgba(0, 0, 0, 0.98);
+    }
+
+    .input_video {
+      display: none;
+    }
+
+    pre {
+      background: rgba(7, 9, 18, 0.96);
+      padding: 12px 14px;
+      border-radius: 14px;
+      white-space: pre-wrap;
+      font-size: 0.78rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      max-height: 180px;
+      overflow: auto;
+      margin-top: 10px;
+    }
   </style>
 
   <!-- MediaPipe libraries (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+  <!-- React (UMD) + Babel for JSX -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
-  <h2>Webcam + Hand Tracking (MediaPipe Hands)</h2>
-  <p>Click <b>Start Camera</b>. If you see the hand skeleton, tracking works.</p>
+  <div id="root"></div>
 
-  <button id="startBtn">Start Camera</button>
-  <span id="status" style="margin-left:10px;">Status: idle</span>
+  <script type="text/babel">
+    const { useEffect, useRef, useState } = React;
 
-  <div class="row" style="margin-top:16px;">
-    <video class="input_video" playsinline></video>
-    <canvas class="output_canvas" width="640" height="480"></canvas>
-  </div>
+    function ASLingoApp() {
+      const videoRef = useRef(null);
+      const canvasRef = useRef(null);
+      const [status, setStatus] = useState("Status: idle");
+      const [debugText, setDebugText] = useState("No data yet.");
+      const [isRunning, setIsRunning] = useState(false);
+      const [mirror, setMirror] = useState(true);
+      const [showDebug, setShowDebug] = useState(true);
+      const [handBadges, setHandBadges] = useState([]);
 
-  <h3>Debug</h3>
-  <pre id="debug">No data yet.</pre>
+      const cameraRef = useRef(null);
+      const handsRef = useRef(null);
+      const mirrorRef = useRef(mirror);
 
-  <script>
-    const videoElement = document.querySelector(".input_video");
-    const canvasElement = document.querySelector(".output_canvas");
-    const canvasCtx = canvasElement.getContext("2d");
-    const startBtn = document.getElementById("startBtn");
-    const statusEl = document.getElementById("status");
-    const debugEl = document.getElementById("debug");
+      useEffect(() => {
+        mirrorRef.current = mirror;
+      }, [mirror]);
 
-    let isRunning = false;
+      useEffect(() => {
+        const videoElement = videoRef.current;
+        const canvasElement = canvasRef.current;
+        if (!videoElement || !canvasElement) return;
 
-    // 1) Create the MediaPipe Hands model
-    const hands = new Hands({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
-    });
+        const canvasCtx = canvasElement.getContext("2d");
 
-    hands.setOptions({
-      maxNumHands: 2,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.5,
-    });
+        const hands = new Hands({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+        });
 
-    // 2) This runs every time MediaPipe finishes processing a frame
-    function onResults(results) {
-      canvasCtx.save();
-      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      canvasCtx.translate(canvasElement.width, 0);
-      canvasCtx.scale(-1, 1);
-      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+        hands.setOptions({
+          maxNumHands: 2,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.7,
+          minTrackingConfidence: 0.5,
+        });
 
-      // If a hand is found, draw landmarks + connectors
-      const hasHand = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
+        function onResults(results) {
+          canvasCtx.save();
+          canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-      if (hasHand) {
-        const handCount = results.multiHandLandmarks.length;
-        const lines = [];
+          if (mirrorRef.current) {
+            canvasCtx.translate(canvasElement.width, 0);
+            canvasCtx.scale(-1, 1);
+          }
 
-        for (let i = 0; i < handCount; i++) {
-          const landmarks = results.multiHandLandmarks[i];
-          const rawHandedness = results.multiHandedness?.[i]?.label ?? "Unknown";
-          const handedness =
-            rawHandedness === "Left"
-              ? "Right"
-              : rawHandedness === "Right"
-              ? "Left"
-              : rawHandedness;
+          canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
-          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { lineWidth: 4 });
-          drawLandmarks(canvasCtx, landmarks, { lineWidth: 2 });
+          const hasHand = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
 
-          lines.push(
-            `Hand ${i + 1}: ${handedness}`,
-            `  Landmarks: ${landmarks.length} (should be 21)`,
-            `  Wrist (0): x=${landmarks[0].x.toFixed(3)}, y=${landmarks[0].y.toFixed(3)}, z=${landmarks[0].z.toFixed(3)}`,
-            `  Index Tip (8): x=${landmarks[8].x.toFixed(3)}, y=${landmarks[8].y.toFixed(3)}, z=${landmarks[8].z.toFixed(3)}`
-          );
+          if (hasHand) {
+            const handCount = results.multiHandLandmarks.length;
+            const lines = [];
+            const badges = [];
+
+            for (let i = 0; i < handCount; i++) {
+              const landmarks = results.multiHandLandmarks[i];
+              const rawHandedness = results.multiHandedness?.[i]?.label ?? "Unknown";
+              const handedness =
+                rawHandedness === "Left"
+                  ? "Right"
+                  : rawHandedness === "Right"
+                  ? "Left"
+                  : rawHandedness;
+
+              drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { lineWidth: 4 });
+              drawLandmarks(canvasCtx, landmarks, { lineWidth: 2 });
+
+              badges.push(handedness);
+
+              lines.push(
+                `Hand ${i + 1}: ${handedness}`,
+                `  Landmarks: ${landmarks.length}`,
+                `  Wrist (0): x=${landmarks[0].x.toFixed(3)}, y=${landmarks[0].y.toFixed(3)}, z=${landmarks[0].z.toFixed(3)}`,
+                `  Index Tip (8): x=${landmarks[8].x.toFixed(3)}, y=${landmarks[8].y.toFixed(3)}, z=${landmarks[8].z.toFixed(3)}`
+              );
+            }
+
+            setHandBadges(badges);
+            setDebugText(lines.join("\n"));
+            setStatus(`Status: tracking (${handCount} hand${handCount > 1 ? "s" : ""} detected)`);
+          } else {
+            setHandBadges([]);
+            setDebugText("No hand detected. Put your hand in front of the camera.");
+            setStatus("Status: running (no hand)");
+          }
+
+          canvasCtx.restore();
         }
 
-        debugEl.textContent = lines.join("\n");
-        statusEl.textContent = `Status: tracking (${handCount} hand${handCount > 1 ? "s" : ""} detected)`;
-      } else {
-        debugEl.textContent = "No hand detected. Put your hand in front of the camera.";
-        statusEl.textContent = "Status: running (no hand)";
-      }
+        hands.onResults(onResults);
 
-      canvasCtx.restore();
+        const camera = new Camera(videoElement, {
+          onFrame: async () => {
+            await hands.send({ image: videoElement });
+          },
+          width: 640,
+          height: 480,
+        });
+
+        handsRef.current = hands;
+        cameraRef.current = camera;
+
+        return () => {
+          if (cameraRef.current && cameraRef.current.stop) {
+            cameraRef.current.stop();
+          }
+        };
+      }, []);
+
+      const handleStart = async () => {
+        if (isRunning || !cameraRef.current) return;
+        try {
+          setStatus("Status: requesting camera permission...");
+          await cameraRef.current.start();
+          setIsRunning(true);
+          setStatus("Status: running (show your hand)");
+        } catch (err) {
+          console.error(err);
+          setStatus("Status: camera failed");
+          alert("Camera failed: " + (err && err.message ? err.message : err));
+        }
+      };
+
+      const handleToggleMirror = () => {
+        setMirror((prev) => !prev);
+      };
+
+      const handleToggleDebug = () => {
+        setShowDebug((prev) => !prev);
+      };
+
+      return (
+        <div className="shell">
+          <div className="hero-copy">
+            <span className="headline-accent">Learn ASL through motion</span>
+            <h2>ASLingo</h2>
+            <p>
+              Turn your webcam into an interactive ASL coach. Raise your hands,
+              see the landmarks light up, and use this lab view to validate that
+              the system is tracking your signing correctly.
+            </p>
+
+            <div className="cta-row">
+              <button onClick={handleStart} disabled={isRunning}>
+                {isRunning ? "Camera running" : "Start Camera"}
+              </button>
+              <span id="status">{status}</span>
+            </div>
+
+            <div className="toggle-row">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={mirror}
+                  onChange={handleToggleMirror}
+                />
+                Mirror view
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={showDebug}
+                  onChange={handleToggleDebug}
+                />
+                Show debug
+              </label>
+            </div>
+
+            {handBadges.length > 0 && (
+              <div className="hand-pills-row">
+                {handBadges.map((handedness, index) => (
+                  <span key={index} className="hand-pill">
+                    {handedness} hand
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {showDebug && <pre id="debug">{debugText}</pre>}
+          </div>
+
+          <div className="hero-visual">
+            <div className={`row ${handBadges.length > 0 ? "row--active" : ""}`}>
+              <video ref={videoRef} className="input_video" playsInline></video>
+              <canvas
+                ref={canvasRef}
+                className={`output_canvas ${
+                  handBadges.length > 0 ? "output_canvas--active" : ""
+                }`}
+                width="640"
+                height="480"
+              ></canvas>
+            </div>
+          </div>
+        </div>
+      );
     }
 
-    hands.onResults(onResults);
-
-    // 3) Create the camera helper: it pulls frames from the webcam and sends them to the model
-    const camera = new Camera(videoElement, {
-      onFrame: async () => {
-        await hands.send({ image: videoElement });
-      },
-      width: 640,
-      height: 480,
-    });
-
-    // 4) Start button
-    startBtn.addEventListener("click", async () => {
-      if (isRunning) return;
-      try {
-        statusEl.textContent = "Status: requesting camera permission...";
-        await camera.start();
-        isRunning = true;
-        startBtn.disabled = true;
-        statusEl.textContent = "Status: running (show your hand)";
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = "Status: camera failed";
-        alert("Camera failed: " + (err?.message || err));
-      }
-    });
+    ReactDOM.createRoot(document.getElementById("root")).render(<ASLingoApp />);
   </script>
 </body>
 </html>
