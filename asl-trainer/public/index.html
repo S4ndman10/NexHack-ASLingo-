@@ -1,370 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
-
-<div style="margin-top: 24px; text-align: center;">
-  <button id="returnBtn">← Return</button>
-</div>
-
-<script>
-  const returnBtn = document.getElementById("returnBtn");
-  returnBtn.addEventListener("click", () => {
-    window.location.href = "/";
-  });
-</script>
-
-<motion.div style={{ scaleX: scrollYProgress }} />
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Webcam + Hand Tracking (MediaPipe Hands)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASLingo Trainer</title>
 
-  <!-- Google Fonts: Google Sans (Roboto as fallback) -->
+  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- MediaPipe -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
   <style>
-    /* Root variables for dark/light mode */
     :root {
-      --bg-color: #ffffff;
-      --text-color: #111111;
-      --card-bg: #f5f5f5;
-      --button-bg: #1976d2;
-      --button-color: #ffffff;
+      --primary: #0d63f8;
+      --secondary: #0cdcf7;
+      --accent: #ff0088;
+      --success: #00c853;
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --text: #202124;
+      --text-secondary: #5f6368;
+      --card-radius: 24px;
+      --btn-radius: 12px;
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg-color: #121212;
-        --text-color: #e0e0e0;
-        --card-bg: #1e1e1e;
-        --button-bg: #90caf9;
-        --button-color: #121212;
+        --bg: #121212;
+        --surface: #1e1e1e;
+        --text: #e8eaed;
+        --text-secondary: #9aa0a6;
       }
     }
 
-    h2, h3 {
-      font-weight: 500;
-    }
+    * { box-sizing: border-box; }
 
     body {
-      font-family: 'Google Sans', system-ui, Arial, sans-serif;
+      font-family: 'Google Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
       margin: 0;
-      height: 100vh;           /* Full viewport height */
-      display: flex;            /* Flex to center content */
-      justify-content: center;  /* Horizontal center */
-      align-items: center;      /* Vertical center */
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      transition: background-color 0.3s, color 0.3s;
-      flex-direction: column;   /* Stack elements vertically */
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
-    .row {
+    /* Header */
+    header {
+      width: 100%;
+      padding: 16px 24px;
       display: flex;
-      gap: 16px;
-      justify-content: center;   /* Center horizontally */
+      justify-content: space-between;
       align-items: center;
+      background: var(--surface);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 1.5rem;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-decoration: none;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+    }
+
+    button {
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      padding: 8px 16px;
+      border-radius: var(--btn-radius);
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--text-secondary);
+      color: var(--text);
+    }
+    
+    .btn-outline:hover { background: rgba(128,128,128,0.1); }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .btn-primary:hover { filter: brightness(1.1); }
+
+    /* Main Layout */
+    main {
+      flex: 1;
+      width: 100%;
+      max-width: 1200px;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border-radius: var(--card-radius);
+      padding: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    h2 { margin: 0 0 16px 0; font-size: 1.2rem; color: var(--text-secondary); }
+
+    /* Reference Section */
+    .reference-display {
+      width: 100%;
+      aspect-ratio: 4/3;
+      background: var(--bg);
+      border-radius: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 20px;
       position: relative;
     }
 
-    .row::before {
-      content: "";
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 840px;
-      height: 720px;
-      background: radial-gradient(circle, var(--glow-color, rgba(1, 21, 56, 0.737)) 0%, transparent 60%);
-      transform: translate(-50%, -50%);
-      border-radius: 50px;
-      z-index: 0;
-    }
-
-
-    video, canvas {
-      position: relative; /* Keep above glow */
-      z-index: 1;
-      width: 640px;
-      height: 480px;
-    }
-
-
-    .input_video { display: none; }
-
-    button {
-      padding: 10px 16px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      border: none;
-      border-radius: 8px;
-      background-color: var(--button-bg);
-      color: var(--button-color);
-      transition: background-color 0.2s, transform 0.1s;
-    }
-
-    button:hover {
-      filter: brightness(1.1);
-      transform: translateY(-1px);
-    }
-
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    #returnBtn {
-      padding: 10px 16px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      border: none;
-      border-radius: 8px;
-      background-color: var(--button-bg);
-      color: var(--button-color);
-      transition: background-color 0.2s, transform 0.1s;
-    }
-
-    #returnBtn:hover {
-      filter: brightness(1.1);
-      transform: translateY(-1px);
-    }
-
-    
-    pre {
-      background-color: var(--card-bg);
-      padding: 10px;
-      border-radius: 8px;
-      white-space: pre-wrap;
-      overflow-x: auto;
+    .reference-img {
       max-width: 100%;
-      box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
-      transition: background-color 0.3s, color 0.3s;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 12px;
     }
 
-    #status {
-      font-weight: 500;
+    .big-letter {
+      font-size: 8rem;
+      font-weight: 700;
+      color: var(--primary);
+      position: absolute;
+      bottom: 10px;
+      right: 20px;
+      text-shadow: 2px 2px 0 var(--surface);
     }
 
-      /* Pulse animation */
-    @keyframes glowPulse {
-      0% {
-        transform: translate(-50%, -50%) scale(1);
-        opacity: 0.4;
-      }
-      50% {
-        transform: translate(-50%, -50%) scale(1.05);
-        opacity: 0.6;
-      }
-      100% {
-        transform: translate(-50%, -50%) scale(1);
-        opacity: 0.6;
-      }
+    /* Camera Section */
+    .camera-container {
+      position: relative;
+      width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #000;
+      aspect-ratio: 4/3;
     }
 
-    /* Activate pulse via class */
-    .row.glow-active::before {
-      animation: glowPulse 1.2s infinite ease-in-out;
+    .input_video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1); /* Mirror effect */
+    }
+
+    .output_canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      transform: scaleX(-1); /* Mirror match */
+    }
+
+    .prediction-overlay {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      backdrop-filter: blur(4px);
+    }
+
+    /* Keyboard */
+    .keyboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+      gap: 8px;
+      width: 100%;
+      margin-top: auto;
+    }
+
+    .key-btn {
+      aspect-ratio: 1;
+      border-radius: 12px;
+      border: 1px solid var(--text-secondary); /* Default border */
+      background: var(--surface);
+      color: var(--text);
+      font-size: 1.2rem;
+      font-weight: 600;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .key-btn:hover {
+      background: var(--bg);
+      transform: translateY(-2px);
+    }
+
+    .key-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .key-btn.success {
+      background: var(--success);
+      color: white;
+      border-color: var(--success);
+      animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    /* Mode Switcher */
+    .mode-switch {
+      background: var(--bg);
+      padding: 4px;
+      border-radius: 99px;
+      display: flex;
+    }
+
+    .mode-btn {
+      padding: 6px 16px;
+      border-radius: 99px;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      background: transparent;
+    }
+
+    .mode-btn.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    /* Quiz Info */
+    .quiz-overlay {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 16px;
+    }
+
+    .timer-bar {
+      width: 100%;
+      height: 6px;
+      background: #eee;
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .timer-fill {
+      height: 100%;
+      background: var(--primary);
+      width: 100%;
+      transition: width 0.1s linear;
+    }
+
+    .quiz-target {
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* Practice Mastered State */
+    .key-btn.mastered {
+      background: var(--success);
+      color: white;
+      border-color: var(--success);
+      opacity: 0.8;
+    }
+    
+    .key-btn.mastered.active {
+      opacity: 1;
+      box-shadow: 0 0 0 2px var(--text);
+    }
+
+    /* Animations */
+    @keyframes pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background-color: #f00;
+      animation: fall linear forwards;
     }
 
   </style>
-
-  <!-- MediaPipe libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-</head>
-
 </head>
 <body>
-  <h2>Webcam + Hand Tracking (MediaPipe Hands)</h2>
-  <p>Click <b>Start Camera</b>. If you see the hand skeleton, tracking works.</p>
 
-  <button id="startBtn">Start Camera</button>
-  <span id="status" style="margin-left:10px;">Status: statusEl.innerText </span>
+  <header>
+    <a href="/" class="logo">ASLingo</a>
+    
+    <div class="mode-switch">
+      <button class="mode-btn active" id="modePractice">Practice</button>
+      <button class="mode-btn" id="modeQuiz">Quiz</button>
+    </div>
 
-  <div class="row" style="margin-top:16px;">
-    <video class="input_video" playsinline></video>
-    <canvas class="output_canvas" width="640" height="480"></canvas>
-  </div>
+    <div class="controls">
+      <button id="returnBtn" class="btn-outline">Exit</button>
+    </div>
+  </header>
 
-<div>
-    <strong>Prediction:</strong> <span id="pred">?</span><br>
-    <strong>Confidence:</strong> <span id="conf">0.00</span><br>
-    <strong>Samples Loaded:</strong> <span id="count">0</span>
-  </div>
+  <main>
+    <!-- Left Column: Reference / Instruction -->
+    <div class="card" id="practiceCard">
+      <h2 id="instructionText">Practice Mode</h2>
+      
+      <div class="reference-display">
+        <!-- Placeholder for when no image is found -->
+        <svg id="placeholderIcon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary);">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+        
+        <img id="refImage" class="reference-img" style="display: none;" alt="ASL Sign Reference" />
+        
+        <div class="big-letter" id="targetLetterDisplay">A</div>
+      </div>
+
+      <p style="text-align: center; color: var(--text-secondary); margin-bottom: 24px;">
+        <span id="hintText">Select a letter to practice</span>
+      </p>
+
+      <div class="keyboard-grid" id="keyboard">
+        <!-- Generated by JS -->
+      </div>
+    </div>
+
+    <!-- Right Column: Camera -->
+    <div class="card" id="cameraCard" style="grid-column: span 1;">
+      <h2 id="camTitle">Camera Feed</h2>
+      <div class="camera-container">
+        <video class="input_video" playsinline></video>
+        <canvas class="output_canvas"></canvas>
+        <div class="prediction-overlay">
+          Prediction: <span id="predLabel">?</span> (<span id="confLabel">0%</span>)
+        </div>
+      </div>
+      
+      <!-- Quiz Interface (Hidden in Practice) -->
+      <div id="quizInterface" class="quiz-overlay">
+        <div style="display: flex; justify-content: space-between; width: 100%; align-items: baseline;">
+           <span style="font-size: 1.2rem; font-weight: 500;">Round <span id="quizRound">1</span>/10</span>
+           <span style="font-size: 1.5rem; font-weight: 700; color: var(--success);">Score: <span id="quizScore">0</span></span>
+        </div>
+        
+        <div style="margin: 20px 0; text-align: center;">
+          <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 4px;">SIGN THIS LETTER</div>
+          <div class="quiz-target" id="quizTargetLetter">A</div>
+        </div>
+
+        <div class="timer-bar">
+          <div class="timer-fill" id="timerFill"></div>
+        </div>
+      </div>
+
+      <div id="camControls" style="margin-top: 16px; width: 100%;">
+        <button id="startCamBtn" class="btn-primary" style="width: 100%;">Start Camera</button>
+        <p id="camStatus" style="text-align: center; font-size: 0.9rem; color: var(--text-secondary); margin-top: 8px;">Camera inactive</p>
+      </div>
+      
+      <div id="pausedOverlay" style="display: none; text-align: center; margin-top: 10px; color: var(--success); font-weight: bold;">
+        ✨ Correct! Select next letter to continue ✨
+      </div>
+    </div>
+  </main>
 
   <script>
-    /* ================= ELEMENTS ================= */
-    const video = document.querySelector(".input_video");
-    const canvas = document.querySelector(".output_canvas");
-    const ctx = canvas.getContext("2d");
+    /* ================= STATE & CONFIG ================= */
+    const STATE = {
+      mode: 'practice', // 'practice' | 'quiz'
+      target: 'A',
+      score: 0,
+      isTracking: false,
+      samples: [],
+      lastPred: null,
+      holdStartTime: 0,
+      holdDuration: 1000,
+      // Quiz specific
+      quizRound: 0,
+      quizMaxRounds: 10,
+      quizTimer: null,
+      quizTimeLeft: 10,
+      // Practice specific
+      completedLetters: new Set(),
+      isPaused: false
+    };
 
-    const predEl = document.getElementById("pred");
-    const confEl = document.getElementById("conf");
-    const countEl = document.getElementById("count");
+    const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
-    /* ================= DATASET ================= */
-    let samples = [];
+    /* ================= UI ELEMENTS ================= */
+    const els = {
+      modePractice: document.getElementById('modePractice'),
+      modeQuiz: document.getElementById('modeQuiz'),
+      keyboard: document.getElementById('keyboard'),
+      refImage: document.getElementById('refImage'),
+      placeholder: document.getElementById('placeholderIcon'),
+      targetDisplay: document.getElementById('targetLetterDisplay'),
+      instruction: document.getElementById('instructionText'),
+      hint: document.getElementById('hintText'),
+      
+      // Cards
+      practiceCard: document.getElementById('practiceCard'),
+      cameraCard: document.getElementById('cameraCard'),
 
-    async function tryFetch(paths) {
-      for (const p of paths) {
-        try {
-          const r = await fetch(p, { cache: "no-store" });
-          if (!r.ok) continue;
-          return { data: await r.json(), path: p };
-        } catch {}
+      // Quiz UI
+      quizInterface: document.getElementById('quizInterface'),
+      quizRound: document.getElementById('quizRound'),
+      quizScore: document.getElementById('quizScore'),
+      quizTarget: document.getElementById('quizTargetLetter'),
+      timerFill: document.getElementById('timerFill'),
+
+      // Cam
+      video: document.querySelector('.input_video'),
+      canvas: document.querySelector('.output_canvas'),
+      predLabel: document.getElementById('predLabel'),
+      confLabel: document.getElementById('confLabel'),
+      status: document.getElementById('camStatus'),
+      startBtn: document.getElementById('startCamBtn'),
+      returnBtn: document.getElementById('returnBtn'),
+      pausedOverlay: document.getElementById('pausedOverlay')
+    };
+    
+    const ctx = els.canvas.getContext('2d');
+
+    /* ================= INITIALIZATION ================= */
+    function init() {
+      // Build Keyboard
+      LETTERS.forEach(l => {
+        const btn = document.createElement('button');
+        btn.className = 'key-btn';
+        btn.innerText = l;
+        btn.dataset.letter = l;
+        btn.onclick = () => setTarget(l);
+        els.keyboard.appendChild(btn);
+      });
+
+      // Event Listeners
+      els.modePractice.onclick = () => setMode('practice');
+      els.modeQuiz.onclick = () => setMode('quiz');
+      els.returnBtn.onclick = () => window.location.href = '/';
+      els.startBtn.onclick = startCamera;
+
+      // Initial State
+      setMode('practice');
+      setTarget('A');
+      loadDataset();
+    }
+
+    function setMode(mode) {
+      STATE.mode = mode;
+      
+      // Update UI Tabs
+      els.modePractice.className = `mode-btn ${mode === 'practice' ? 'active' : ''}`;
+      els.modeQuiz.className = `mode-btn ${mode === 'quiz' ? 'active' : ''}`;
+
+      if (mode === 'practice') {
+        // Show Practice UI
+        els.practiceCard.style.display = 'flex';
+        els.cameraCard.style.gridColumn = 'span 1';
+        els.quizInterface.style.display = 'none';
+        
+        // Reset Pause
+        STATE.isPaused = false;
+        els.pausedOverlay.style.display = 'none';
+        
+      } else {
+        // Show Quiz UI
+        els.practiceCard.style.display = 'none';
+        els.cameraCard.style.gridColumn = 'span 2'; // Center camera
+        els.cameraCard.style.maxWidth = '800px';
+        els.cameraCard.style.margin = '0 auto';
+        els.quizInterface.style.display = 'flex';
+        els.pausedOverlay.style.display = 'none';
+        
+        // Start Quiz
+        startQuiz();
       }
-      throw new Error("Dataset not found");
     }
 
+    /* ================= PRACTICE LOGIC ================= */
+    function setTarget(letter) {
+      if (STATE.mode !== 'practice') return;
+      
+      STATE.target = letter;
+      STATE.isPaused = false; // Unpause when picking new letter
+      els.pausedOverlay.style.display = 'none';
+      els.targetDisplay.innerText = letter;
+
+      // Update Keyboard
+      updateKeyboard();
+
+      // Load Image
+      const imgPath = `assets/letters/${letter}.png`; 
+      els.refImage.src = imgPath;
+      els.refImage.onload = () => {
+        els.refImage.style.display = 'block';
+        els.placeholder.style.display = 'none';
+      };
+      els.refImage.onerror = () => {
+        els.refImage.style.display = 'none';
+        els.placeholder.style.display = 'block';
+      };
+    }
+
+    function updateKeyboard() {
+      document.querySelectorAll('.key-btn').forEach(b => {
+        const l = b.dataset.letter;
+        b.className = 'key-btn'; // reset
+        if (STATE.completedLetters.has(l)) b.classList.add('mastered');
+        if (l === STATE.target) b.classList.add('active');
+      });
+    }
+
+    /* ================= QUIZ LOGIC ================= */
+    function startQuiz() {
+      STATE.score = 0;
+      STATE.quizRound = 0;
+      STATE.completedLetters.clear(); // Optional: reset mastery on quiz start? Or keep it separate.
+      updateQuizUI();
+      nextQuizQuestion();
+    }
+
+    function nextQuizQuestion() {
+      // Clear previous timer
+      if (STATE.quizTimer) clearInterval(STATE.quizTimer);
+
+      STATE.quizRound++;
+      if (STATE.quizRound > STATE.quizMaxRounds) {
+        endQuiz();
+        return;
+      }
+
+      // Pick random letter
+      const randomLetter = LETTERS[Math.floor(Math.random() * LETTERS.length)];
+      STATE.target = randomLetter;
+      
+      // Update UI
+      updateQuizUI();
+      
+      // Start Timer
+      STATE.quizTimeLeft = 10;
+      startTimer();
+    }
+
+    function startTimer() {
+      updateTimerUI();
+      STATE.quizTimer = setInterval(() => {
+        STATE.quizTimeLeft -= 0.1;
+        updateTimerUI();
+        
+        if (STATE.quizTimeLeft <= 0) {
+          // Time's up!
+          clearInterval(STATE.quizTimer);
+          // Move to next question (0 points)
+          flashFeedback(false);
+          setTimeout(nextQuizQuestion, 1500);
+        }
+      }, 100);
+    }
+
+    function updateTimerUI() {
+      const pct = (STATE.quizTimeLeft / 10) * 100;
+      els.timerFill.style.width = `${Math.max(0, pct)}%`;
+      
+      if (pct < 30) els.timerFill.style.background = '#ff0088';
+      else els.timerFill.style.background = 'var(--primary)';
+    }
+
+    function updateQuizUI() {
+      els.quizRound.innerText = STATE.quizRound;
+      els.quizScore.innerText = STATE.score;
+      els.quizTarget.innerText = STATE.target;
+      els.quizTarget.style.color = 'var(--text)';
+    }
+
+    function endQuiz() {
+      alert(`Quiz Finished!\nYour Score: ${STATE.score}/${STATE.quizMaxRounds * 10}`);
+      setMode('practice'); // Go back to practice
+    }
+
+    function flashFeedback(success) {
+      const color = success ? 'var(--success)' : '#ff0088'; // Green or Red
+      els.quizTarget.style.color = color;
+      els.quizTarget.innerText = success ? "✓" : "✗";
+    }
+
+    /* ================= PREDICTION HANDLER ================= */
+    function handleCorrectPrediction() {
+      if (STATE.mode === 'quiz') {
+        // Quiz Mode Success
+        if (STATE.quizTimer) clearInterval(STATE.quizTimer);
+        STATE.score += 10;
+        updateQuizUI();
+        flashFeedback(true);
+        setTimeout(nextQuizQuestion, 1000); // Wait 1s then next
+        
+      } else {
+        // Practice Mode Success
+        if (STATE.isPaused) return; // Already paused
+
+        STATE.completedLetters.add(STATE.target);
+        updateKeyboard();
+        
+        // Visuals
+        const btn = document.querySelector(`.key-btn[data-letter="${STATE.target}"]`);
+        if (btn) btn.classList.add('success'); // Pulse animation
+        
+        // Freeze
+        STATE.isPaused = true;
+        els.pausedOverlay.style.display = 'block';
+      }
+    }
+
+    /* ================= LOGIC: HAND TRACKING ================= */
+    
+    // Dataset Loading (same as before but cleaner)
     async function loadDataset() {
-      const { data, path } = await tryFetch([
-        "./asl_samples-7.json",
-        "/asl_samples-7.json",
-        "./public/asl_samples-7.json"
-      ]);
-
-      samples = data.filter(
-        s => s && typeof s.label === "string" && Array.isArray(s.vec) && s.vec.length === 63
-      );
-
-      console.log("Dataset loaded from:", path, samples.length);
-      countEl.innerText = samples.length;
+      try {
+        const paths = ["./asl_samples-7.json", "/asl_samples-7.json"];
+        let data = null;
+        for (const p of paths) {
+          try {
+            const r = await fetch(p);
+            if (r.ok) { data = await r.json(); break; }
+          } catch(e){}
+        }
+        
+        if (!data) throw new Error("No dataset");
+        
+        STATE.samples = data.filter(s => s.vec && s.vec.length === 63);
+        console.log(`Loaded ${STATE.samples.length} samples`);
+      } catch (err) {
+        console.warn("Dataset failed to load. Ensure asl_samples-7.json exists in public/.");
+      }
     }
 
-    loadDataset().catch(err => {
-      console.error(err);
-      alert("FAILED TO LOAD ASL DATASET — check folder structure");
-    });
-
-    /* ================= NORMALIZATION ================= */
-    function normalize(lm) {
-      const wrist = lm[0];
-      const mid = lm[9];
+    // KNN Logic
+    function classify(landmarks, handLabel) {
+      if (!STATE.samples.length) return { label: "?", confidence: 0 };
+      
+      // 1. Normalize (wrist-relative + scale)
+      const wrist = landmarks[0];
+      const mid = landmarks[9]; // Middle finger MCP
       const scale = Math.hypot(mid.x - wrist.x, mid.y - wrist.y) || 1;
-      return lm.map(p => ({
+      
+      let normalized = landmarks.map(p => ({
         x: (p.x - wrist.x) / scale,
         y: (p.y - wrist.y) / scale,
         z: (p.z - wrist.z) / scale
       }));
-    }
 
-    function unifyHand(lm, hand) {
-      return hand === "Left" ? lm.map(p => ({ ...p, x: -p.x })) : lm;
-    }
-
-    function flatten(lm) {
-      const v = [];
-      for (const p of lm) v.push(p.x, p.y, p.z);
-      return v;
-    }
-
-    /* ================= KNN ================= */
-    function dist(a, b) {
-      let s = 0;
-      for (let i = 0; i < a.length; i++) {
-        const d = a[i] - b[i];
-        s += d * d;
-      }
-      return Math.sqrt(s);
-    }
-
-    function knn(data, vec, k = 7) {
-      if (!data.length) return { label: "?", confidence: 0 };
-
-      const scored = data.map(s => ({
-        label: s.label,
-        d: dist(s.vec, vec)
-      })).sort((a, b) => a.d - b.d);
-
-      const votes = {};
-      for (const s of scored.slice(0, k)) {
-        votes[s.label] = (votes[s.label] || 0) + 1;
+      // 2. Unify Hand (Mirror Left to Right if needed)
+      // MediaPipe often mirrors image, so 'Left' might appear as right hand visually if mirrored.
+      // But typically we standardize to one side.
+      if (handLabel === "Left") {
+        normalized = normalized.map(p => ({ ...p, x: -p.x }));
       }
 
-      let best = "?", count = 0;
-      for (const l in votes) {
-        if (votes[l] > count) {
-          best = l;
-          count = votes[l];
+      // 3. Flatten
+      const vec = [];
+      for(const p of normalized) {
+        vec.push(p.x, p.y, p.z);
+      }
+
+      // Find nearest
+      // Simple 1-NN for speed, or K-NN
+      let bestDist = Infinity;
+      let bestLabel = "?";
+      
+      // Optimization: Just check top 1 for responsiveness or small K
+      // Using K=3
+      const k = 5;
+      const candidates = STATE.samples.map(s => {
+        let d = 0;
+        for(let i=0; i<63; i++) {
+          const diff = s.vec[i] - vec[i];
+          d += diff*diff;
         }
+        return { label: s.label, d: Math.sqrt(d) };
+      }).sort((a,b) => a.d - b.d).slice(0, k);
+
+      // Vote
+      const votes = {};
+      candidates.forEach(c => votes[c.label] = (votes[c.label]||0) + 1);
+      
+      let maxVotes = 0;
+      for(const l in votes) {
+        if(votes[l] > maxVotes) { maxVotes = votes[l]; bestLabel = l; }
       }
-
-      return { label: best, confidence: count / k };
+      
+      // Confidence roughly based on agreement
+      return { label: bestLabel, confidence: maxVotes / k };
     }
 
-    /* ================= MEDIAPIPE ================= */
-    const hands = new Hands({
-      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
-    });
+    // Camera & MediaPipe
+    async function startCamera() {
+      els.startBtn.disabled = true;
+      els.startBtn.innerText = "Starting...";
+      
+      const hands = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      });
 
-    hands.setOptions({
-      maxNumHands: 1,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.5
-    });
+      hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.5
+      });
 
-    hands.onResults(res => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(res.image, 0, 0, canvas.width, canvas.height);
+      hands.onResults(onResults);
 
-  const rowDiv = document.querySelector(".row");
-  const statusEl = document.getElementById("status");
+      const camera = new Camera(els.video, {
+        onFrame: async () => {
+          await hands.send({ image: els.video });
+        },
+        width: 640,
+        height: 480
+      });
 
-  const lm = res.multiHandLandmarks?.[0];
-  const hand = res.multiHandedness?.[0]?.label;
-
-  if (lm && samples.length) {
-    statusEl.innerText = "tracking";
-
-    drawConnectors(ctx, lm, HAND_CONNECTIONS, { lineWidth: 4 });
-    drawLandmarks(ctx, lm, { lineWidth: 2 });
-
-    const vec = flatten(unifyHand(normalize(lm), hand));
-    const p = knn(samples, vec);
-
-    confEl.innerText = p.confidence.toFixed(2);
-
-    // Glow color based on confidence
-    let glowColor;
-    if (p.confidence >= 0.75) glowColor = "rgba(0,255,0,0.4)"; // green
-    else if (p.confidence >= 0.5) glowColor = "rgba(255,255,0,0.4)"; // yellow
-    else glowColor = "rgba(255,0,0,0.4)"; // red
-
-    rowDiv.style.setProperty("--glow-color", glowColor);
-    rowDiv.classList.add("glow-active");
-
-    // Show letter only if confidence ≥ 0.75
-    if (p.confidence >= 0.75) {
-      predEl.innerText = p.label;
-      ctx.font = "bold 80px 'Google Sans', Arial";
-      ctx.strokeStyle = "white";
-      ctx.fillStyle = "black";
-      ctx.lineWidth = 5;
-      ctx.textAlign = "center";
-      ctx.strokeText(p.label, canvas.width / 2, 90);
-      ctx.fillText(p.label, canvas.width / 2, 90);
-    } else {
-      predEl.innerText = "?";
+      await camera.start();
+      els.startBtn.style.display = 'none';
+      els.status.innerText = "Tracking Active";
     }
-  } else {
-    statusEl.innerText = "idle";
-    rowDiv.classList.remove("glow-active");
-    predEl.innerText = "?";
-    confEl.innerText = "0.00";
-  }
-});
 
+    function onResults(results) {
+      // Draw
+      ctx.save();
+      ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
+      ctx.drawImage(results.image, 0, 0, els.canvas.width, els.canvas.height);
+      
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const lm = results.multiHandLandmarks[0];
+        const hand = results.multiHandedness && results.multiHandedness[0] ? results.multiHandedness[0].label : "Right";
+        
+        drawConnectors(ctx, lm, HAND_CONNECTIONS, {color: '#0cdcf7', lineWidth: 4});
+        drawLandmarks(ctx, lm, {color: '#ff0088', lineWidth: 2, radius: 4});
 
-    /* ================= CAMERA ================= */
-    const camera = new Camera(video, {
-      onFrame: async () => {
-        await hands.send({ image: video });
-      },
-      width: 640,
-      height: 480
-    });
+        // Predict
+        const result = classify(lm, hand);
+        els.predLabel.innerText = result.label;
+        els.confLabel.innerText = Math.round(result.confidence * 100) + "%";
 
-    camera.start();
+        // Game Logic: Check Match
+        if (result.label === STATE.target && result.confidence > 0.6) {
+           // Require holding it for a moment?
+           const now = Date.now();
+           if (!STATE.holdStartTime) STATE.holdStartTime = now;
+           else if (now - STATE.holdStartTime > 500) {
+             // Held for 500ms
+             handleCorrectPrediction();
+             STATE.holdStartTime = 0; // Reset
+           }
+        } else {
+          STATE.holdStartTime = 0;
+        }
+
+      }
+      ctx.restore();
+    }
+
+    // Run
+    init();
+
   </script>
 </body>
 </html>
