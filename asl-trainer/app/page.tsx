@@ -89,7 +89,7 @@ export default function HomeLanding() {
               key={letter}
               className="card"
               style={{ backgroundImage: `url(${img})` }}
-              whileHover={{ scale: 1.12, y: -14 }}
+              whileHover={{ scale: 1.25, y: -14 }}
               transition={{ type: "spring", stiffness: 260, damping: 18 }}
             >
               <div className="overlay">
@@ -148,7 +148,7 @@ function StyleSheet() {
       .cta-wrapper {
         display: flex;
         justify-content: center;
-        margin-bottom: 80px;
+        margin-bottom: 100px;
       }
 
       .cta-button {
@@ -164,7 +164,7 @@ function StyleSheet() {
 
       /* Scroll */
       .scroll-section {
-        padding-bottom: 120px;
+        padding-bottom: 100px;
       }
 
       ul {
