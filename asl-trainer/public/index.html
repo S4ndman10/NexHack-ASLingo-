@@ -1,6 +1,17 @@
 <head>
 
-return <motion.div style={{ scaleX: scrollYProgress }} />
+<div style="margin-top: 24px; text-align: center;">
+  <button id="returnBtn">← Return</button>
+</div>
+
+<script>
+  const returnBtn = document.getElementById("returnBtn");
+  returnBtn.addEventListener("click", () => {
+    window.location.href = "/";
+  });
+</script>
+
+<motion.div style={{ scaleX: scrollYProgress }} />
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Webcam + Hand Tracking (MediaPipe Hands)</title>
@@ -53,7 +64,6 @@ return <motion.div style={{ scaleX: scrollYProgress }} />
       position: relative;
     }
 
-    /* Background glow */
     .row::before {
       content: "";
       position: absolute;
@@ -61,11 +71,12 @@ return <motion.div style={{ scaleX: scrollYProgress }} />
       left: 50%;
       width: 720px;
       height: 520px;
-      background: radial-gradient(circle, rgba(13,99,248,0.2) 0%, transparent 50%);
+      background: radial-gradient(circle, var(--glow-color, rgba(13,99,248,0.2)) 0%, transparent 70%);
       transform: translate(-50%, -50%);
-      border-radius: 25px;
+      border-radius: 16px;
       z-index: 0;
     }
+
 
     video, canvas {
       position: relative; /* Keep above glow */
@@ -99,6 +110,24 @@ return <motion.div style={{ scaleX: scrollYProgress }} />
       cursor: not-allowed;
     }
 
+    #returnBtn {
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      background-color: var(--button-bg);
+      color: var(--button-color);
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    #returnBtn:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    
     pre {
       background-color: var(--card-bg);
       padding: 10px;
@@ -285,8 +314,6 @@ return <motion.div style={{ scaleX: scrollYProgress }} />
   const hand = res.multiHandedness?.[0]?.label;
 
   if (lm && samples.length) {
-    // Hand detected → show glow
-    rowDiv.classList.add("glow-active");
     statusEl.innerText = "tracking";
 
     drawConnectors(ctx, lm, HAND_CONNECTIONS, { lineWidth: 4 });
@@ -297,10 +324,18 @@ return <motion.div style={{ scaleX: scrollYProgress }} />
 
     confEl.innerText = p.confidence.toFixed(2);
 
-    // Only show letter if confidence >= 0.75
+    // Glow color based on confidence
+    let glowColor;
+    if (p.confidence >= 0.75) glowColor = "rgba(0,255,0,0.4)"; // green
+    else if (p.confidence >= 0.5) glowColor = "rgba(255,255,0,0.4)"; // yellow
+    else glowColor = "rgba(255,0,0,0.4)"; // red
+
+    rowDiv.style.setProperty("--glow-color", glowColor);
+    rowDiv.classList.add("glow-active");
+
+    // Show letter only if confidence ≥ 0.75
     if (p.confidence >= 0.75) {
       predEl.innerText = p.label;
-
       ctx.font = "bold 80px 'Google Sans', Arial";
       ctx.strokeStyle = "white";
       ctx.fillStyle = "black";
@@ -312,14 +347,13 @@ return <motion.div style={{ scaleX: scrollYProgress }} />
       predEl.innerText = "?";
     }
   } else {
-    // No hand → remove glow
-    rowDiv.classList.remove("glow-active");
     statusEl.innerText = "idle";
-
+    rowDiv.classList.remove("glow-active");
     predEl.innerText = "?";
     confEl.innerText = "0.00";
   }
 });
+
 
     /* ================= CAMERA ================= */
     const camera = new Camera(video, {
