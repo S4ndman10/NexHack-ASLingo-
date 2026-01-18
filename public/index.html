@@ -41,17 +41,12 @@
 
     <script>
         const videoElement = document.getElementById('webcam');
-        const canvasElement = document.getElementById('hand-canvas');
-        const canvasCtx = canvasElement.getContext('2d');
 
         async function startWebcam() {
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                     videoElement.srcObject = stream;
-                    videoElement.onloadedmetadata = () => {
-                        loadHandPoseModel();
-                    };
                 } catch (error) {
                     console.error("Error accessing the webcam: ", error);
                     alert("Could not access the webcam. Please ensure you have a webcam connected and have granted permission.");
