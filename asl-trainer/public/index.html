@@ -28,33 +28,55 @@ return <motion.div style={{ scaleX: scrollYProgress }} />
       }
     }
 
+    h2, h3 {
+      font-weight: 500;
+    }
+
     body {
       font-family: 'Google Sans', system-ui, Arial, sans-serif;
-      margin: 16px;
+      margin: 0;
+      height: 100vh;           /* Full viewport height */
+      display: flex;            /* Flex to center content */
+      justify-content: center;  /* Horizontal center */
+      align-items: center;      /* Vertical center */
       background-color: var(--bg-color);
       color: var(--text-color);
       transition: background-color 0.3s, color 0.3s;
-    }
-
-    h2, h3 {
-      font-weight: 500;
+      flex-direction: column;   /* Stack elements vertically */
     }
 
     .row {
       display: flex;
       gap: 16px;
-      align-items: flex-start;
-      flex-wrap: wrap;
-      margin-top: 16px;
+      justify-content: center;   /* Center horizontally */
+      align-items: center;
+      position: relative;
+    }
+
+    /* Background glow */
+    .row::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 720px;
+      height: 520px;
+      background: radial-gradient(circle, rgba(13,99,248,0.2) 0%, transparent 70%);
+      transform: translate(-50%, -50%);
+      border-radius: 16px;
+      z-index: 0;
     }
 
     video, canvas {
+      position: relative; /* Keep above glow */
+      z-index: 1;
       width: 640px;
       height: 480px;
       background: #111;
       border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 20px rgba(13,99,248,0.5);
     }
+
 
     .input_video { display: none; }
 
@@ -94,6 +116,28 @@ return <motion.div style={{ scaleX: scrollYProgress }} />
     #status {
       font-weight: 500;
     }
+
+      /* Pulse animation */
+    @keyframes glowPulse {
+      0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.4;
+      }
+      50% {
+        transform: translate(-50%, -50%) scale(1.05);
+        opacity: 0.6;
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.4;
+      }
+    }
+
+    /* Activate pulse via class */
+    .row.glow-active::before {
+      animation: glowPulse 1.2s infinite ease-in-out;
+    }
+
   </style>
 
   <!-- MediaPipe libraries -->
@@ -251,7 +295,7 @@ return <motion.div style={{ scaleX: scrollYProgress }} />
       predEl.innerText = p.label;
       confEl.innerText = p.confidence.toFixed(2);
 
-      ctx.font = "bold 80px Arial";
+      ctx.font = "bold 80px 'Google Sans', Arial";
       ctx.strokeStyle = "white";
       ctx.fillStyle = "black";
       ctx.lineWidth = 5;
