@@ -1,0 +1,370 @@
+<head>
+
+<div style="margin-top: 24px; text-align: center;">
+  <button id="returnBtn">← Return</button>
+</div>
+
+<script>
+  const returnBtn = document.getElementById("returnBtn");
+  returnBtn.addEventListener("click", () => {
+    window.location.href = "/";
+  });
+</script>
+
+<motion.div style={{ scaleX: scrollYProgress }} />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Webcam + Hand Tracking (MediaPipe Hands)</title>
+
+  <!-- Google Fonts: Google Sans (Roboto as fallback) -->
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* Root variables for dark/light mode */
+    :root {
+      --bg-color: #ffffff;
+      --text-color: #111111;
+      --card-bg: #f5f5f5;
+      --button-bg: #1976d2;
+      --button-color: #ffffff;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #121212;
+        --text-color: #e0e0e0;
+        --card-bg: #1e1e1e;
+        --button-bg: #90caf9;
+        --button-color: #121212;
+      }
+    }
+
+    h2, h3 {
+      font-weight: 500;
+    }
+
+    body {
+      font-family: 'Google Sans', system-ui, Arial, sans-serif;
+      margin: 0;
+      height: 100vh;           /* Full viewport height */
+      display: flex;            /* Flex to center content */
+      justify-content: center;  /* Horizontal center */
+      align-items: center;      /* Vertical center */
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      transition: background-color 0.3s, color 0.3s;
+      flex-direction: column;   /* Stack elements vertically */
+    }
+
+    .row {
+      display: flex;
+      gap: 16px;
+      justify-content: center;   /* Center horizontally */
+      align-items: center;
+      position: relative;
+    }
+
+    .row::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 840px;
+      height: 720px;
+      background: radial-gradient(circle, var(--glow-color, rgba(1, 21, 56, 0.737)) 0%, transparent 60%);
+      transform: translate(-50%, -50%);
+      border-radius: 50px;
+      z-index: 0;
+    }
+
+
+    video, canvas {
+      position: relative; /* Keep above glow */
+      z-index: 1;
+      width: 640px;
+      height: 480px;
+    }
+
+
+    .input_video { display: none; }
+
+    button {
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      background-color: var(--button-bg);
+      color: var(--button-color);
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    button:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    #returnBtn {
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      background-color: var(--button-bg);
+      color: var(--button-color);
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    #returnBtn:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    
+    pre {
+      background-color: var(--card-bg);
+      padding: 10px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      overflow-x: auto;
+      max-width: 100%;
+      box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    #status {
+      font-weight: 500;
+    }
+
+      /* Pulse animation */
+    @keyframes glowPulse {
+      0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.4;
+      }
+      50% {
+        transform: translate(-50%, -50%) scale(1.05);
+        opacity: 0.6;
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.6;
+      }
+    }
+
+    /* Activate pulse via class */
+    .row.glow-active::before {
+      animation: glowPulse 1.2s infinite ease-in-out;
+    }
+
+  </style>
+
+  <!-- MediaPipe libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+
+</head>
+<body>
+  <h2>Webcam + Hand Tracking (MediaPipe Hands)</h2>
+  <p>Click <b>Start Camera</b>. If you see the hand skeleton, tracking works.</p>
+
+  <button id="startBtn">Start Camera</button>
+  <span id="status" style="margin-left:10px;">Status: statusEl.innerText </span>
+
+  <div class="row" style="margin-top:16px;">
+    <video class="input_video" playsinline></video>
+    <canvas class="output_canvas" width="640" height="480"></canvas>
+  </div>
+
+<div>
+    <strong>Prediction:</strong> <span id="pred">?</span><br>
+    <strong>Confidence:</strong> <span id="conf">0.00</span><br>
+    <strong>Samples Loaded:</strong> <span id="count">0</span>
+  </div>
+
+  <script>
+    /* ================= ELEMENTS ================= */
+    const video = document.querySelector(".input_video");
+    const canvas = document.querySelector(".output_canvas");
+    const ctx = canvas.getContext("2d");
+
+    const predEl = document.getElementById("pred");
+    const confEl = document.getElementById("conf");
+    const countEl = document.getElementById("count");
+
+    /* ================= DATASET ================= */
+    let samples = [];
+
+    async function tryFetch(paths) {
+      for (const p of paths) {
+        try {
+          const r = await fetch(p, { cache: "no-store" });
+          if (!r.ok) continue;
+          return { data: await r.json(), path: p };
+        } catch {}
+      }
+      throw new Error("Dataset not found");
+    }
+
+    async function loadDataset() {
+      const { data, path } = await tryFetch([
+        "./asl_samples-7.json",
+        "/asl_samples-7.json",
+        "./public/asl_samples-7.json"
+      ]);
+
+      samples = data.filter(
+        s => s && typeof s.label === "string" && Array.isArray(s.vec) && s.vec.length === 63
+      );
+
+      console.log("Dataset loaded from:", path, samples.length);
+      countEl.innerText = samples.length;
+    }
+
+    loadDataset().catch(err => {
+      console.error(err);
+      alert("FAILED TO LOAD ASL DATASET — check folder structure");
+    });
+
+    /* ================= NORMALIZATION ================= */
+    function normalize(lm) {
+      const wrist = lm[0];
+      const mid = lm[9];
+      const scale = Math.hypot(mid.x - wrist.x, mid.y - wrist.y) || 1;
+      return lm.map(p => ({
+        x: (p.x - wrist.x) / scale,
+        y: (p.y - wrist.y) / scale,
+        z: (p.z - wrist.z) / scale
+      }));
+    }
+
+    function unifyHand(lm, hand) {
+      return hand === "Left" ? lm.map(p => ({ ...p, x: -p.x })) : lm;
+    }
+
+    function flatten(lm) {
+      const v = [];
+      for (const p of lm) v.push(p.x, p.y, p.z);
+      return v;
+    }
+
+    /* ================= KNN ================= */
+    function dist(a, b) {
+      let s = 0;
+      for (let i = 0; i < a.length; i++) {
+        const d = a[i] - b[i];
+        s += d * d;
+      }
+      return Math.sqrt(s);
+    }
+
+    function knn(data, vec, k = 7) {
+      if (!data.length) return { label: "?", confidence: 0 };
+
+      const scored = data.map(s => ({
+        label: s.label,
+        d: dist(s.vec, vec)
+      })).sort((a, b) => a.d - b.d);
+
+      const votes = {};
+      for (const s of scored.slice(0, k)) {
+        votes[s.label] = (votes[s.label] || 0) + 1;
+      }
+
+      let best = "?", count = 0;
+      for (const l in votes) {
+        if (votes[l] > count) {
+          best = l;
+          count = votes[l];
+        }
+      }
+
+      return { label: best, confidence: count / k };
+    }
+
+    /* ================= MEDIAPIPE ================= */
+    const hands = new Hands({
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.5
+    });
+
+    hands.onResults(res => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(res.image, 0, 0, canvas.width, canvas.height);
+
+  const rowDiv = document.querySelector(".row");
+  const statusEl = document.getElementById("status");
+
+  const lm = res.multiHandLandmarks?.[0];
+  const hand = res.multiHandedness?.[0]?.label;
+
+  if (lm && samples.length) {
+    statusEl.innerText = "tracking";
+
+    drawConnectors(ctx, lm, HAND_CONNECTIONS, { lineWidth: 4 });
+    drawLandmarks(ctx, lm, { lineWidth: 2 });
+
+    const vec = flatten(unifyHand(normalize(lm), hand));
+    const p = knn(samples, vec);
+
+    confEl.innerText = p.confidence.toFixed(2);
+
+    // Glow color based on confidence
+    let glowColor;
+    if (p.confidence >= 0.75) glowColor = "rgba(0,255,0,0.4)"; // green
+    else if (p.confidence >= 0.5) glowColor = "rgba(255,255,0,0.4)"; // yellow
+    else glowColor = "rgba(255,0,0,0.4)"; // red
+
+    rowDiv.style.setProperty("--glow-color", glowColor);
+    rowDiv.classList.add("glow-active");
+
+    // Show letter only if confidence ≥ 0.75
+    if (p.confidence >= 0.75) {
+      predEl.innerText = p.label;
+      ctx.font = "bold 80px 'Google Sans', Arial";
+      ctx.strokeStyle = "white";
+      ctx.fillStyle = "black";
+      ctx.lineWidth = 5;
+      ctx.textAlign = "center";
+      ctx.strokeText(p.label, canvas.width / 2, 90);
+      ctx.fillText(p.label, canvas.width / 2, 90);
+    } else {
+      predEl.innerText = "?";
+    }
+  } else {
+    statusEl.innerText = "idle";
+    rowDiv.classList.remove("glow-active");
+    predEl.innerText = "?";
+    confEl.innerText = "0.00";
+  }
+});
+
+
+    /* ================= CAMERA ================= */
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await hands.send({ image: video });
+      },
+      width: 640,
+      height: 480
+    });
+
+    camera.start();
+  </script>
+</body>
+</html>
