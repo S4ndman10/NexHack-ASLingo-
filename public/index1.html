@@ -1,0 +1,118 @@
+<!-- Single-file: webcam + MediaPipe Hands tracking + draw landmarks (NO letter detection) -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Webcam + Hand Tracking (MediaPipe Hands)</title>
+  <style>
+    body { font-family: system-ui, Arial; margin: 16px; }
+    .row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+    video, canvas { width: 640px; height: 480px; background: #111; border-radius: 8px; }
+    button { padding: 10px 14px; font-size: 14px; cursor: pointer; }
+    pre { background: #f5f5f5; padding: 10px; border-radius: 8px; white-space: pre-wrap; }
+  </style>
+
+  <!-- MediaPipe libraries (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+  <h2>Webcam + Hand Tracking (MediaPipe Hands)</h2>
+  <p>Click <b>Start Camera</b>. If you see the hand skeleton, tracking works.</p>
+
+  <button id="startBtn">Start Camera</button>
+  <span id="status" style="margin-left:10px;">Status: idle</span>
+
+  <div class="row" style="margin-top:16px;">
+    <video class="input_video" playsinline></video>
+    <canvas class="output_canvas" width="640" height="480"></canvas>
+  </div>
+
+  <h3>Debug</h3>
+  <pre id="debug">No data yet.</pre>
+
+  <script>
+    const videoElement = document.querySelector(".input_video");
+    const canvasElement = document.querySelector(".output_canvas");
+    const canvasCtx = canvasElement.getContext("2d");
+    const startBtn = document.getElementById("startBtn");
+    const statusEl = document.getElementById("status");
+    const debugEl = document.getElementById("debug");
+
+    let isRunning = false;
+
+    // 1) Create the MediaPipe Hands model
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.5,
+    });
+
+    // 2) This runs every time MediaPipe finishes processing a frame
+    function onResults(results) {
+      // Draw the camera frame into the canvas
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+      // If a hand is found, draw landmarks + connectors
+      const hasHand = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
+
+      if (hasHand) {
+        const landmarks = results.multiHandLandmarks[0];
+        const handedness = results.multiHandedness?.[0]?.label ?? "Unknown";
+
+        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { lineWidth: 4 });
+        drawLandmarks(canvasCtx, landmarks, { lineWidth: 2 });
+
+        // Minimal debug info
+        debugEl.textContent =
+          `Hand: ${handedness}\n` +
+          `Landmarks: ${landmarks.length} (should be 21)\n` +
+          `Wrist (0): x=${landmarks[0].x.toFixed(3)}, y=${landmarks[0].y.toFixed(3)}, z=${landmarks[0].z.toFixed(3)}\n` +
+          `Index Tip (8): x=${landmarks[8].x.toFixed(3)}, y=${landmarks[8].y.toFixed(3)}, z=${landmarks[8].z.toFixed(3)}\n`;
+        statusEl.textContent = "Status: tracking (hand detected)";
+      } else {
+        debugEl.textContent = "No hand detected. Put your hand in front of the camera.";
+        statusEl.textContent = "Status: running (no hand)";
+      }
+
+      canvasCtx.restore();
+    }
+
+    hands.onResults(onResults);
+
+    // 3) Create the camera helper: it pulls frames from the webcam and sends them to the model
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await hands.send({ image: videoElement });
+      },
+      width: 640,
+      height: 480,
+    });
+
+    // 4) Start button
+    startBtn.addEventListener("click", async () => {
+      if (isRunning) return;
+      try {
+        statusEl.textContent = "Status: requesting camera permission...";
+        await camera.start();
+        isRunning = true;
+        startBtn.disabled = true;
+        statusEl.textContent = "Status: running (show your hand)";
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Status: camera failed";
+        alert("Camera failed: " + (err?.message || err));
+      }
+    });
+  </script>
+</body>
+</html>
