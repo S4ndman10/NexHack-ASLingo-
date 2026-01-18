@@ -58,7 +58,6 @@
 
     // 2) This runs every time MediaPipe finishes processing a frame
     function onResults(results) {
-      // Draw the camera frame into the canvas (mirrored for selfie view)
       canvasCtx.save();
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
       canvasCtx.translate(canvasElement.width, 0);
@@ -69,25 +68,32 @@
       const hasHand = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
 
       if (hasHand) {
-        const landmarks = results.multiHandLandmarks[0];
-        const rawHandedness = results.multiHandedness?.[0]?.label ?? "Unknown";
-        const handedness =
-          rawHandedness === "Left"
-            ? "Right"
-            : rawHandedness === "Right"
-            ? "Left"
-            : rawHandedness;
+        const handCount = results.multiHandLandmarks.length;
+        const lines = [];
 
-        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { lineWidth: 4 });
-        drawLandmarks(canvasCtx, landmarks, { lineWidth: 2 });
+        for (let i = 0; i < handCount; i++) {
+          const landmarks = results.multiHandLandmarks[i];
+          const rawHandedness = results.multiHandedness?.[i]?.label ?? "Unknown";
+          const handedness =
+            rawHandedness === "Left"
+              ? "Right"
+              : rawHandedness === "Right"
+              ? "Left"
+              : rawHandedness;
 
-        // Minimal debug info
-        debugEl.textContent =
-          `Hand: ${handedness}\n` +
-          `Landmarks: ${landmarks.length} (should be 21)\n` +
-          `Wrist (0): x=${landmarks[0].x.toFixed(3)}, y=${landmarks[0].y.toFixed(3)}, z=${landmarks[0].z.toFixed(3)}\n` +
-          `Index Tip (8): x=${landmarks[8].x.toFixed(3)}, y=${landmarks[8].y.toFixed(3)}, z=${landmarks[8].z.toFixed(3)}\n`;
-        statusEl.textContent = "Status: tracking (hand detected)";
+          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { lineWidth: 4 });
+          drawLandmarks(canvasCtx, landmarks, { lineWidth: 2 });
+
+          lines.push(
+            `Hand ${i + 1}: ${handedness}`,
+            `  Landmarks: ${landmarks.length} (should be 21)`,
+            `  Wrist (0): x=${landmarks[0].x.toFixed(3)}, y=${landmarks[0].y.toFixed(3)}, z=${landmarks[0].z.toFixed(3)}`,
+            `  Index Tip (8): x=${landmarks[8].x.toFixed(3)}, y=${landmarks[8].y.toFixed(3)}, z=${landmarks[8].z.toFixed(3)}`
+          );
+        }
+
+        debugEl.textContent = lines.join("\n");
+        statusEl.textContent = `Status: tracking (${handCount} hand${handCount > 1 ? "s" : ""} detected)`;
       } else {
         debugEl.textContent = "No hand detected. Put your hand in front of the camera.";
         statusEl.textContent = "Status: running (no hand)";
