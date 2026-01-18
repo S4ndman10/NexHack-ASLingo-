@@ -1,0 +1,654 @@
+<!-- react demo -->
+<!-- Single-file: webcam + MediaPipe Hands tracking + draw landmarks (NO letter detection) -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ASLingo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #05060a;
+      --bg-accent: #0d101f;
+      --accent: #ffb347;
+      --accent-soft: #ffd58a;
+      --accent-alt: #66e0ff;
+      --text-main: #f7f7ff;
+      --text-muted: #a5a7c2;
+      --border-soft: rgba(255, 255, 255, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(255, 179, 71, 0.18), transparent 55%),
+        radial-gradient(circle at 100% 0%, rgba(102, 224, 255, 0.16), transparent 55%),
+        radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.03), transparent 60%),
+        var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 1080px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(5, 6, 10, 0.95));
+      border-radius: 24px;
+      border: 1px solid var(--border-soft);
+      box-shadow:
+        0 22px 45px rgba(0, 0, 0, 0.75),
+        0 0 0 1px rgba(255, 255, 255, 0.02);
+      padding: 28px 26px 24px;
+      backdrop-filter: blur(22px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr);
+      gap: 28px;
+    }
+
+    @media (max-width: 900px) {
+      .shell {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .hero-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      justify-content: center;
+    }
+
+    h2 {
+      font-size: clamp(2rem, 3vw, 2.8rem);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-main);
+    }
+
+    .headline-accent {
+      display: inline-block;
+      font-weight: 650;
+      font-size: 0.78rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent-soft);
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: radial-gradient(circle at 0 0, rgba(255, 255, 255, 0.12), transparent 55%);
+      margin-bottom: 6px;
+    }
+
+    p {
+      font-size: 0.98rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+      max-width: 30rem;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 16px;
+      margin-top: 6px;
+    }
+
+    .toggle-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      margin-top: 10px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .toggle-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .toggle-row input {
+      accent-color: var(--accent);
+    }
+
+    button {
+      padding: 10px 18px;
+      font-size: 0.92rem;
+      font-weight: 550;
+      cursor: pointer;
+      border-radius: 999px;
+      border: none;
+      color: #05060a;
+      background: linear-gradient(135deg, var(--accent), var(--accent-alt));
+      box-shadow:
+        0 12px 28px rgba(0, 0, 0, 0.75),
+        0 0 0 1px rgba(0, 0, 0, 0.45);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 160ms ease-out, box-shadow 160ms ease-out, filter 160ms ease-out;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+      box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.85),
+        0 0 0 1px rgba(0, 0, 0, 0.5);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow:
+        0 10px 24px rgba(0, 0, 0, 0.75),
+        0 0 0 1px rgba(0, 0, 0, 0.55);
+    }
+
+    #status {
+      font-size: 0.86rem;
+      color: var(--accent-soft);
+    }
+
+    .hand-pills-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .hand-pill {
+      font-size: 0.78rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(102, 224, 255, 0.12);
+      border: 1px solid rgba(102, 224, 255, 0.7);
+      color: var(--accent-soft);
+    }
+
+    .predicted-letter {
+      font-size: clamp(2.6rem, 5vw, 3.4rem);
+      font-weight: 700;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--text-main);
+      text-shadow:
+        0 0 18px rgba(102, 224, 255, 0.75),
+        0 0 36px rgba(255, 179, 71, 0.6);
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(circle at 0 0, rgba(102, 224, 255, 0.12), transparent 60%),
+        radial-gradient(circle at 100% 100%, rgba(255, 179, 71, 0.08), transparent 60%),
+        rgba(5, 6, 10, 0.96);
+      border-radius: 24px;
+      padding: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow:
+        0 16px 36px rgba(0, 0, 0, 0.85),
+        0 0 0 1px rgba(0, 0, 0, 0.85);
+      transition: box-shadow 180ms ease-out, border-color 180ms ease-out;
+    }
+
+    .row--active {
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.95),
+        0 0 36px rgba(102, 224, 255, 0.4),
+        0 0 18px rgba(255, 179, 71, 0.35),
+        0 0 0 1px rgba(0, 0, 0, 0.95);
+      border-color: rgba(102, 224, 255, 0.65);
+    }
+
+    video,
+    canvas {
+      display: block;
+      width: 640px;
+      height: 480px;
+      background: radial-gradient(circle at 0 0, #05060a, #05060a);
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow:
+        0 16px 36px rgba(0, 0, 0, 0.9);
+      transition: box-shadow 180ms ease-out, border-color 180ms ease-out;
+    }
+
+    .output_canvas--active {
+      border-color: rgba(255, 179, 71, 0.7);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.08),
+        0 0 0 1px rgba(255, 179, 71, 0.5),
+        0 0 42px rgba(102, 224, 255, 0.6),
+        0 26px 64px rgba(0, 0, 0, 0.98);
+    }
+
+    .input_video {
+      display: none;
+    }
+
+    pre {
+      background: rgba(7, 9, 18, 0.96);
+      padding: 12px 14px;
+      border-radius: 14px;
+      white-space: pre-wrap;
+      font-size: 0.78rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      max-height: 180px;
+      overflow: auto;
+      margin-top: 10px;
+    }
+  </style>
+
+  <!-- MediaPipe libraries (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+  <!-- Tailwind CSS (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- React (UMD) + Babel for JSX -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-950 min-h-screen flex items-center justify-center p-4">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useEffect, useRef, useState } = React;
+
+    function ASLingoApp() {
+      const videoRef = useRef(null);
+      const canvasRef = useRef(null);
+      const [status, setStatus] = useState("Status: idle");
+      const [isRunning, setIsRunning] = useState(false);
+      const [mirror, setMirror] = useState(true);
+      const [handBadges, setHandBadges] = useState([]);
+      const [predictedLetter, setPredictedLetter] = useState("");
+      const [predictionConfidence, setPredictionConfidence] = useState(0);
+      const [sampleCount, setSampleCount] = useState(0);
+
+      const cameraRef = useRef(null);
+      const handsRef = useRef(null);
+      const mirrorRef = useRef(mirror);
+      const samplesRef = useRef([]);
+      const predictionBufferRef = useRef([]);
+
+      function normalizeLandmarks(landmarks) {
+        const wrist = landmarks[0];
+        const mid = landmarks[9];
+        const scale =
+          Math.hypot(mid.x - wrist.x, mid.y - wrist.y) || 1;
+        return landmarks.map((p) => ({
+          x: (p.x - wrist.x) / scale,
+          y: (p.y - wrist.y) / scale,
+          z: (p.z - wrist.z) / scale,
+        }));
+      }
+
+      function unifyHand(landmarks, handedness) {
+        if (handedness === "Left") {
+          return landmarks.map((p) => ({ x: -p.x, y: p.y, z: p.z }));
+        }
+        return landmarks;
+      }
+
+      function flattenLandmarks(landmarks) {
+        const vec = [];
+        for (let i = 0; i < landmarks.length; i++) {
+          vec.push(landmarks[i].x, landmarks[i].y, landmarks[i].z);
+        }
+        return vec;
+      }
+
+      function euclideanDistance(a, b) {
+        let sum = 0;
+        for (let i = 0; i < a.length; i++) {
+          const d = a[i] - b[i];
+          sum += d * d;
+        }
+        return Math.sqrt(sum);
+      }
+
+      function knnPredict(samples, vec, k = 7) {
+        if (!samples.length) {
+          return { label: "?", confidence: 0 };
+        }
+
+        const scored = samples
+          .map((s) => ({
+            label: s.label,
+            d: euclideanDistance(s.vec, vec),
+          }))
+          .sort((a, b) => a.d - b.d);
+
+        const votes = {};
+        for (let i = 0; i < Math.min(k, scored.length); i++) {
+          const label = scored[i].label;
+          votes[label] = (votes[label] || 0) + 1;
+        }
+
+        let bestLabel = "?";
+        let bestCount = 0;
+        for (const label in votes) {
+          if (votes[label] > bestCount) {
+            bestLabel = label;
+            bestCount = votes[label];
+          }
+        }
+
+        return {
+          label: bestLabel,
+          confidence: k > 0 ? bestCount / k : 0,
+        };
+      }
+
+      useEffect(() => {
+        mirrorRef.current = mirror;
+      }, [mirror]);
+
+      useEffect(() => {
+        async function loadDataset() {
+          const paths = [
+            "./data/asl_samples-2.json",
+            "./asl_samples-2.json",
+            "/asl_samples-2.json",
+          ];
+
+          let loaded = null;
+
+          for (let i = 0; i < paths.length; i++) {
+            try {
+              const response = await fetch(paths[i], {
+                cache: "no-store",
+              });
+              if (!response.ok) {
+                continue;
+              }
+              const data = await response.json();
+
+              const filtered = data.filter(
+                (s) =>
+                  s &&
+                  typeof s.label === "string" &&
+                  Array.isArray(s.vec) &&
+                  s.vec.length === 63
+              );
+
+              loaded = filtered;
+              break;
+            } catch (e) {}
+          }
+
+          if (!loaded) {
+            setStatus("Status: failed to load ASL dataset");
+            return;
+          }
+
+          samplesRef.current = loaded;
+          setSampleCount(loaded.length);
+        }
+
+        loadDataset();
+      }, []);
+
+      useEffect(() => {
+        const videoElement = videoRef.current;
+        const canvasElement = canvasRef.current;
+        if (!videoElement || !canvasElement) return;
+
+        const canvasCtx = canvasElement.getContext("2d");
+
+        const hands = new Hands({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+        });
+
+        hands.setOptions({
+          maxNumHands: 2,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.7,
+          minTrackingConfidence: 0.5,
+        });
+
+        function onResults(results) {
+          canvasCtx.save();
+          canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+          if (mirrorRef.current) {
+            canvasCtx.translate(canvasElement.width, 0);
+            canvasCtx.scale(-1, 1);
+          }
+
+          canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+          const hasHand = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
+
+          if (hasHand) {
+            const handCount = results.multiHandLandmarks.length;
+            const badges = [];
+
+            for (let i = 0; i < handCount; i++) {
+              const landmarks = results.multiHandLandmarks[i];
+              const rawHandedness = results.multiHandedness?.[i]?.label ?? "Unknown";
+              const handedness =
+                rawHandedness === "Left"
+                  ? "Right"
+                  : rawHandedness === "Right"
+                  ? "Left"
+                  : rawHandedness;
+
+              drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { lineWidth: 4 });
+              drawLandmarks(canvasCtx, landmarks, { lineWidth: 2 });
+
+              badges.push(handedness);
+            }
+
+            setHandBadges(badges);
+            setStatus(`Status: tracking (${handCount} hand${handCount > 1 ? "s" : ""} detected)`);
+
+            const primaryLandmarks = results.multiHandLandmarks[0];
+            const primaryRawHandedness = results.multiHandedness?.[0]?.label ?? "Unknown";
+
+            if (primaryLandmarks && primaryLandmarks.length === 21) {
+              const normalized = normalizeLandmarks(primaryLandmarks);
+              const unified = unifyHand(normalized, primaryRawHandedness);
+              const vec = flattenLandmarks(unified);
+              const prediction = knnPredict(samplesRef.current, vec, 7);
+
+              if (prediction.label !== "?") {
+                const buffer = predictionBufferRef.current;
+                buffer.push(prediction.label);
+                if (buffer.length > 10) {
+                  buffer.shift();
+                }
+
+                const counts = {};
+                for (let i = 0; i < buffer.length; i++) {
+                  const label = buffer[i];
+                  counts[label] = (counts[label] || 0) + 1;
+                }
+
+                let stableLabel = "?";
+                let stableCount = 0;
+                for (const label in counts) {
+                  if (counts[label] > stableCount) {
+                    stableLabel = label;
+                    stableCount = counts[label];
+                  }
+                }
+
+                if (stableLabel !== "?") {
+                  setPredictedLetter(stableLabel);
+                }
+              } else {
+                predictionBufferRef.current = [];
+              }
+
+              setPredictionConfidence(prediction.confidence);
+            }
+          } else {
+            setHandBadges([]);
+            setStatus("Status: running (no hand)");
+          }
+
+          canvasCtx.restore();
+        }
+
+        hands.onResults(onResults);
+
+        const camera = new Camera(videoElement, {
+          onFrame: async () => {
+            await hands.send({ image: videoElement });
+          },
+          width: 640,
+          height: 480,
+        });
+
+        handsRef.current = hands;
+        cameraRef.current = camera;
+
+        return () => {
+          if (cameraRef.current && cameraRef.current.stop) {
+            cameraRef.current.stop();
+          }
+        };
+      }, []);
+
+      const handleStart = async () => {
+        if (isRunning || !cameraRef.current) return;
+        try {
+          setStatus("Status: requesting camera permission...");
+          await cameraRef.current.start();
+          setIsRunning(true);
+          setStatus("Status: running (show your hand)");
+        } catch (err) {
+          console.error(err);
+          setStatus("Status: camera failed");
+          alert("Camera failed: " + (err && err.message ? err.message : err));
+        }
+      };
+
+      const handleStop = () => {
+        if (!isRunning || !cameraRef.current) return;
+        try {
+          cameraRef.current.stop();
+        } catch (err) {
+          console.error(err);
+        }
+        setIsRunning(false);
+        setStatus("Status: stopped");
+      };
+
+      const handleToggleMirror = () => {
+        setMirror((prev) => !prev);
+      };
+
+      return (
+        <div className="shell flex flex-col md:flex-row gap-8 md:gap-10">
+          <div className="hero-copy">
+            <span className="headline-accent">Learn ASL through motion</span>
+            <h2>ASLingo</h2>
+            <p>
+              Turn your webcam into an interactive ASL coach. Raise your hands,
+              see the landmarks light up, and use this lab view to validate that
+              the system is tracking your signing correctly.
+            </p>
+
+            <div className="cta-row">
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  onClick={handleStart}
+                  disabled={isRunning}
+                  className="px-5 py-2.5 rounded-full font-semibold bg-gradient-to-r from-amber-400 to-cyan-400 text-slate-950 shadow-lg shadow-amber-500/40 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isRunning ? "Recording..." : "Start Recording"}
+                </button>
+                <button
+                  onClick={handleStop}
+                  disabled={!isRunning}
+                  className="px-4 py-2 rounded-full border border-slate-500 text-sm font-medium text-slate-200 bg-slate-900/70 hover:bg-slate-800/80 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Stop
+                </button>
+                <span id="status" className="text-xs sm:text-sm text-amber-200">
+                  {status}
+                </span>
+              </div>
+            </div>
+
+            <div className="toggle-row">
+            
+              <span>
+                Confidence: {(predictionConfidence * 100).toFixed(0)}%
+              </span>
+            </div>
+
+            <div className="toggle-row">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={mirror}
+                  onChange={handleToggleMirror}
+                />
+                Mirror view
+              </label>
+            </div>
+
+            {handBadges.length > 0 && (
+              <div className="hand-pills-row">
+                {handBadges.map((handedness, index) => (
+                  <span key={index} className="hand-pill">
+                    {handedness} hand
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="hero-visual flex items-center justify-center">
+            <div className="relative">
+              <div className={`row ${handBadges.length > 0 ? "row--active" : ""}`}>
+                <video ref={videoRef} className="input_video" playsInline></video>
+                <canvas
+                  ref={canvasRef}
+                  className={`output_canvas ${
+                    handBadges.length > 0 ? "output_canvas--active" : ""
+                  }`}
+                  width="640"
+                  height="480"
+                ></canvas>
+              </div>
+              {predictedLetter && (
+                <div className="predicted-letter absolute left-1/2 -translate-x-1/2 top-3 pointer-events-none">
+                  {predictedLetter}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<ASLingoApp />);
+  </script>
+</body>
+</html>
