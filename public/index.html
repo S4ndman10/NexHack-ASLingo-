@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASL Hand Sign Detection</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: sans-serif;
+        }
+        #webcam-container {
+            position: relative;
+            border: 5px solid #333;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            background-color: #000;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+    </style>
+    <!-- TensorFlow.js and Hand Pose Detection Model -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection"></script>
+</head>
+<body>
+    <h1>ASL Hand Sign Detection</h1>
+    <div id="webcam-container">
+        <video id="webcam" width="640" height="480" autoplay playsinline></video>
+        <canvas id="hand-canvas" width="640" height="480"></canvas>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('hand-canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+
+        async function startWebcam() {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    videoElement.srcObject = stream;
+                    videoElement.onloadedmetadata = () => {
+                        loadHandPoseModel();
+                    };
+                } catch (error) {
+                    console.error("Error accessing the webcam: ", error);
+                    alert("Could not access the webcam. Please ensure you have a webcam connected and have granted permission.");
+                }
+            } else {
+                alert("Your browser does not support the MediaDevices API.");
+            }
+        }
+
+        async function loadHandPoseModel() {
+            const model = await handPoseDetection.createDetector(handPoseDetection.SupportedModels.MediaPipeHands, {
+                runtime: 'tfjs',
+                modelType: 'full'
+            });
+            detectHands(model);
+        }
+
+        async function detectHands(model) {
+            const hands = await model.estimateHands(videoElement, { flipHorizontal: false });
+
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            if (hands.length > 0) {
+                drawHands(hands);
+            }
+
+            requestAnimationFrame(() => detectHands(model));
+        }
+
+        function drawHands(hands) {
+            for (const hand of hands) {
+                for (const keypoint of hand.keypoints) {
+                    canvasCtx.fillStyle = 'red';
+                    canvasCtx.beginPath();
+                    canvasCtx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
+                    canvasCtx.fill();
+                }
+            }
+        }
+
+        startWebcam();
+    </script>
+</body>
+</html>
