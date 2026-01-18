@@ -10,27 +10,23 @@ async function startCamera() {
       video: { width: 640, height: 480 },
       audio: false
     });
-
     video.srcObject = stream;
 
-    await new Promise((resolve) => {
-      video.onloadedmetadata = () => resolve();
-    });
+    await new Promise((resolve) => (video.onloadedmetadata = resolve));
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
     video.play();
 
-    startRoboflowStream();
+    startRoboflow();
   } catch (err) {
     console.error("Webcam error:", err);
     alert("Cannot access webcam: " + err.message);
   }
 }
 
-async function startRoboflowStream() {
-  // Connect via your backend proxy
+async function startRoboflow() {
   const connector = connectors.withProxyUrl("/api/init-webrtc");
 
   const wrtcParams = {
@@ -75,5 +71,4 @@ function drawPredictions(predictions) {
   }
 }
 
-// Start everything
 startCamera();
