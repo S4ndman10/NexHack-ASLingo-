@@ -65,7 +65,7 @@ export default function HomeLanding() {
     <main className="landing">
       {/* Hero */}
       <section className="hero">
-        <h1>ASLingo</h1>
+        <h1>ASLearn</h1>
         <p>Learn American Sign Language with real-time hand tracking</p>
       </section>
 
