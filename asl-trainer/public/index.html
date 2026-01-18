@@ -881,11 +881,16 @@
         onFrame: async () => {
           await hands.send({ image: els.video });
         },
-        width: 640,
-        height: 480
+        width: 1280,   // High-quality resolution from aesthetic branch
+        height: 720,
+        facingMode: 'user'
       });
 
       await camera.start();
+      // Match canvas size to video for accurate drawing
+      els.canvas.width = 1280;
+      els.canvas.height = 720;
+      
       els.startBtn.style.display = 'none';
       els.status.innerText = "Tracking Active";
     }
@@ -900,9 +905,10 @@
         const lm = results.multiHandLandmarks[0];
         const hand = results.multiHandedness && results.multiHandedness[0] ? results.multiHandedness[0].label : "Right";
         
-        // Thinner, black lines for cleaner look
-        drawConnectors(ctx, lm, HAND_CONNECTIONS, {color: '#000000', lineWidth: 2});
-        drawLandmarks(ctx, lm, {color: '#000000', lineWidth: 1, radius: 3});
+        // "Tracking without explicitly displaying the skeleton"
+        // We comment out the draw calls. If you want subtle feedback, uncomment them.
+        // drawConnectors(ctx, lm, HAND_CONNECTIONS, {color: '#000000', lineWidth: 2});
+        // drawLandmarks(ctx, lm, {color: '#000000', lineWidth: 1, radius: 3});
 
         // Predict
         const result = classify(lm, hand);

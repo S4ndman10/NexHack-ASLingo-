@@ -73,6 +73,22 @@ export default function HomeLanding() {
         <h1>ASLingo</h1>
         {/* <p>Learn American Sign Language with real-time hand tracking</p> */}
         {/* <span className="hint">Scroll →</span> */}
+        
+        <div style={{ marginTop: "20px" }}>
+          <motion.a 
+            href="/about.html"
+            style={{ 
+              color: "#0d63f8", 
+              textDecoration: "none", 
+              fontWeight: 600,
+              fontSize: "1.1rem",
+              borderBottom: "2px solid transparent"
+            }}
+            whileHover={{ borderBottom: "2px solid #0d63f8" }}
+          >
+            About Us →
+          </motion.a>
+        </div>
       </section>
 
       {/* CTA Button */}
