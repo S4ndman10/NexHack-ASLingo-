@@ -113,103 +113,161 @@
     <canvas class="output_canvas" width="640" height="480"></canvas>
   </div>
 
-  <h3>Debug</h3>
-  <pre id="debug">No data yet.</pre>
+<div>
+    <strong>Prediction:</strong> <span id="pred">?</span><br>
+    <strong>Confidence:</strong> <span id="conf">0.00</span><br>
+    <strong>Samples Loaded:</strong> <span id="count">0</span>
+  </div>
 
   <script>
-    const videoElement = document.querySelector(".input_video");
-    const canvasElement = document.querySelector(".output_canvas");
-    const canvasCtx = canvasElement.getContext("2d");
-    const startBtn = document.getElementById("startBtn");
-    const statusEl = document.getElementById("status");
-    const debugEl = document.getElementById("debug");
+    /* ================= ELEMENTS ================= */
+    const video = document.querySelector(".input_video");
+    const canvas = document.querySelector(".output_canvas");
+    const ctx = canvas.getContext("2d");
 
-    let isRunning = false;
+    const predEl = document.getElementById("pred");
+    const confEl = document.getElementById("conf");
+    const countEl = document.getElementById("count");
 
-    // 1) Create the MediaPipe Hands model
+    /* ================= DATASET ================= */
+    let samples = [];
+
+    async function tryFetch(paths) {
+      for (const p of paths) {
+        try {
+          const r = await fetch(p, { cache: "no-store" });
+          if (!r.ok) continue;
+          return { data: await r.json(), path: p };
+        } catch {}
+      }
+      throw new Error("Dataset not found");
+    }
+
+    async function loadDataset() {
+      const { data, path } = await tryFetch([
+        "./asl_samples-2.json",
+        "/asl_samples-2.json",
+        "./public/asl_samples-2.json"
+      ]);
+
+      samples = data.filter(
+        s => s && typeof s.label === "string" && Array.isArray(s.vec) && s.vec.length === 63
+      );
+
+      console.log("Dataset loaded from:", path, samples.length);
+      countEl.innerText = samples.length;
+    }
+
+    loadDataset().catch(err => {
+      console.error(err);
+      alert("FAILED TO LOAD ASL DATASET — check folder structure");
+    });
+
+    /* ================= NORMALIZATION ================= */
+    function normalize(lm) {
+      const wrist = lm[0];
+      const mid = lm[9];
+      const scale = Math.hypot(mid.x - wrist.x, mid.y - wrist.y) || 1;
+      return lm.map(p => ({
+        x: (p.x - wrist.x) / scale,
+        y: (p.y - wrist.y) / scale,
+        z: (p.z - wrist.z) / scale
+      }));
+    }
+
+    function unifyHand(lm, hand) {
+      return hand === "Left" ? lm.map(p => ({ ...p, x: -p.x })) : lm;
+    }
+
+    function flatten(lm) {
+      const v = [];
+      for (const p of lm) v.push(p.x, p.y, p.z);
+      return v;
+    }
+
+    /* ================= KNN ================= */
+    function dist(a, b) {
+      let s = 0;
+      for (let i = 0; i < a.length; i++) {
+        const d = a[i] - b[i];
+        s += d * d;
+      }
+      return Math.sqrt(s);
+    }
+
+    function knn(data, vec, k = 7) {
+      if (!data.length) return { label: "?", confidence: 0 };
+
+      const scored = data.map(s => ({
+        label: s.label,
+        d: dist(s.vec, vec)
+      })).sort((a, b) => a.d - b.d);
+
+      const votes = {};
+      for (const s of scored.slice(0, k)) {
+        votes[s.label] = (votes[s.label] || 0) + 1;
+      }
+
+      let best = "?", count = 0;
+      for (const l in votes) {
+        if (votes[l] > count) {
+          best = l;
+          count = votes[l];
+        }
+      }
+
+      return { label: best, confidence: count / k };
+    }
+
+    /* ================= MEDIAPIPE ================= */
     const hands = new Hands({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
     });
 
     hands.setOptions({
-      maxNumHands: 2,
+      maxNumHands: 1,
       modelComplexity: 1,
       minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.5,
+      minTrackingConfidence: 0.5
     });
 
-    // 2) This runs every time MediaPipe finishes processing a frame
-    function onResults(results) {
-      canvasCtx.save();
-      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      canvasCtx.translate(canvasElement.width, 0);
-      canvasCtx.scale(-1, 1);
-      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+    hands.onResults(res => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(res.image, 0, 0, canvas.width, canvas.height);
 
-      // If a hand is found, draw landmarks + connectors
-      const hasHand = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
+      const lm = res.multiHandLandmarks?.[0];
+      const hand = res.multiHandedness?.[0]?.label;
 
-      if (hasHand) {
-        const handCount = results.multiHandLandmarks.length;
-        const lines = [];
+      if (!lm || !samples.length) return;
 
-        for (let i = 0; i < handCount; i++) {
-          const landmarks = results.multiHandLandmarks[i];
-          const rawHandedness = results.multiHandedness?.[i]?.label ?? "Unknown";
-          const handedness =
-            rawHandedness === "Left"
-              ? "Right"
-              : rawHandedness === "Right"
-              ? "Left"
-              : rawHandedness;
+      drawConnectors(ctx, lm, HAND_CONNECTIONS, { lineWidth: 4 });
+      drawLandmarks(ctx, lm, { lineWidth: 2 });
 
-          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { lineWidth: 4 });
-          drawLandmarks(canvasCtx, landmarks, { lineWidth: 2 });
+      const vec = flatten(unifyHand(normalize(lm), hand));
+      const p = knn(samples, vec);
 
-          lines.push(
-            `Hand ${i + 1}: ${handedness}`,
-            `  Landmarks: ${landmarks.length} (should be 21)`,
-            `  Wrist (0): x=${landmarks[0].x.toFixed(3)}, y=${landmarks[0].y.toFixed(3)}, z=${landmarks[0].z.toFixed(3)}`,
-            `  Index Tip (8): x=${landmarks[8].x.toFixed(3)}, y=${landmarks[8].y.toFixed(3)}, z=${landmarks[8].z.toFixed(3)}`
-          );
-        }
+      predEl.innerText = p.label;
+      confEl.innerText = p.confidence.toFixed(2);
 
-        debugEl.textContent = lines.join("\n");
-        statusEl.textContent = `Status: tracking (${handCount} hand${handCount > 1 ? "s" : ""} detected)`;
-      } else {
-        debugEl.textContent = "No hand detected. Put your hand in front of the camera.";
-        statusEl.textContent = "Status: running (no hand)";
-      }
+      ctx.font = "bold 80px Arial";
+      ctx.strokeStyle = "white";
+      ctx.fillStyle = "black";
+      ctx.lineWidth = 5;
+      ctx.textAlign = "center";
+      ctx.strokeText(p.label, canvas.width / 2, 90);
+      ctx.fillText(p.label, canvas.width / 2, 90);
+    });
 
-      canvasCtx.restore();
-    }
-
-    hands.onResults(onResults);
-
-    // 3) Create the camera helper: it pulls frames from the webcam and sends them to the model
-    const camera = new Camera(videoElement, {
+    /* ================= CAMERA ================= */
+    const camera = new Camera(video, {
       onFrame: async () => {
-        await hands.send({ image: videoElement });
+        await hands.send({ image: video });
       },
       width: 640,
-      height: 480,
+      height: 480
     });
 
-    // 4) Start button
-    startBtn.addEventListener("click", async () => {
-      if (isRunning) return;
-      try {
-        statusEl.textContent = "Status: requesting camera permission...";
-        await camera.start();
-        isRunning = true;
-        startBtn.disabled = true;
-        statusEl.textContent = "Status: running (show your hand)";
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = "Status: camera failed";
-        alert("Camera failed: " + (err?.message || err));
-      }
-    });
+    camera.start();
   </script>
 </body>
 </html>
