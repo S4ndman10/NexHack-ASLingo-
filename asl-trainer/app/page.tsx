@@ -1,110 +1,100 @@
 "use client"
 
 import { useRef } from "react"
-import { motion, animate, MotionValue, useMotionValue, useMotionValueEvent, useScroll } from "motion/react"
+import {
+  motion,
+  animate,
+  MotionValue,
+  useMotionValue,
+  useMotionValueEvent,
+  useScroll,
+} from "motion/react"
 
-/**
- * Scroll Mask Hook
- */
-const left = `0%`
-const right = `100%`
-const leftInset = `20%`
-const rightInset = `80%`
-const transparent = `#0000`
-const opaque = `#000`
+/* ================= Scroll Mask Hook ================= */
+
+const opaque = "#000"
+const transparent = "#0000"
 
 function useScrollOverflowMask(scrollXProgress: MotionValue<number>) {
   const maskImage = useMotionValue(
-    `linear-gradient(90deg, ${opaque}, ${opaque} ${left}, ${opaque} ${rightInset}, ${transparent})`
+    `linear-gradient(90deg, ${opaque}, ${opaque} 80%, ${transparent})`
   )
 
   useMotionValueEvent(scrollXProgress, "change", () => {
-    const value = scrollXProgress.get()
-    const prev = scrollXProgress.getPrevious()
-    if (value === 0) {
-      animate(maskImage, `linear-gradient(90deg, ${opaque}, ${opaque} ${left}, ${opaque} ${rightInset}, ${transparent})`)
-    } else if (value === 1) {
-      animate(maskImage, `linear-gradient(90deg, ${transparent}, ${opaque} ${leftInset}, ${opaque} ${right}, ${opaque})`)
-    } else if (prev === 0 || prev === 1) {
-      animate(maskImage, `linear-gradient(90deg, ${transparent}, ${opaque} ${leftInset}, ${opaque} ${rightInset}, ${transparent})`)
+    const v = scrollXProgress.get()
+
+    if (v <= 0.01) {
+      animate(
+        maskImage,
+        `linear-gradient(90deg, ${opaque}, ${opaque} 80%, ${transparent})`
+      )
+    } else if (v >= 0.99) {
+      animate(
+        maskImage,
+        `linear-gradient(90deg, ${transparent}, ${opaque} 20%, ${opaque})`
+      )
+    } else {
+      animate(
+        maskImage,
+        `linear-gradient(90deg, ${transparent}, ${opaque} 20%, ${opaque} 80%, ${transparent})`
+      )
     }
   })
 
   return maskImage
 }
 
-/**
- * Landing Page Component
- */
+/* ================= Landing Page ================= */
+
 export default function HomeLanding() {
   const ref = useRef<HTMLUListElement | null>(null)
   const { scrollXProgress } = useScroll({ container: ref })
   const maskImage = useScrollOverflowMask(scrollXProgress)
 
-  const cards: [string, string][] = [
-    ["A", "pink"],
-    ["B", "purple"],
-    ["C", "violet"],
-    ["D", "blue"],
-    ["E", "cyan"],
-    ["F", "purple"],
-    ["G", "violet"],
-    ["H", "blue"],
-    ["I", "cyan"],
-    ["J", "purple"],
-    ["K", "violet"],
-    ["L", "blue"],
-    ["M", "cyan"],
-    ["N", "purple"],
-    ["O", "violet"],
-    ["P", "blue"],
-    ["Q", "cyan"],
-    ["R", "purple"],
-    ["S", "violet"],
-    ["T", "blue"],
-    ["U", "cyan"],
-    ["V", "purple"],
-  ]
+  const letters = Array.from({ length: 26 }, (_, i) => {
+  const upper = String.fromCharCode(65 + i)
+  const lower = upper.toLowerCase()
+
+  return {
+    letter: upper,
+    img: `/ASL/${lower}.png`,
+  }
+})
 
   return (
     <main className="landing">
       {/* Hero */}
       <section className="hero">
         <h1>ASLingo</h1>
-        {/* <p>Learn American Sign Language with real-time hand tracking</p> */}
-        {/* <span className="hint">Scroll →</span> */}
+        <p>Learn American Sign Language with real-time hand tracking</p>
       </section>
 
-      {/* CTA Button */}
+      {/* CTA */}
       <div className="cta-wrapper">
         <motion.a
           href="/index.html"
           className="cta-button"
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.95 }}
         >
-          Start Training
-          <motion.span
-            className="arrow"
-            style={{ marginLeft: "10px" }}
-            variants={{ hover: { x: 6 }, tap: { x: 0 } }}
-          >
-            →
-          </motion.span>
+          Start Training →
         </motion.a>
       </div>
 
-      {/* Scroll Section */}
+      {/* Scroll Cards */}
       <section className="scroll-section">
         <motion.ul ref={ref} style={{ maskImage }}>
-          {cards.map(([letter, color]) => (
+          {letters.map(({ letter, img }) => (
             <motion.li
               key={letter}
-              className={`card ${color}`}
-              whileHover={{ scale: 1.5, y: -12 }}
+              className="card"
+              style={{ backgroundImage: `url(${img})` }}
+              whileHover={{ scale: 1.12, y: -14 }}
               transition={{ type: "spring", stiffness: 260, damping: 18 }}
             >
-              <h2>{letter}</h2>
+              <div className="overlay">
+                <h2>{letter}</h2>
+              </div>
             </motion.li>
           ))}
         </motion.ul>
@@ -115,24 +105,14 @@ export default function HomeLanding() {
   )
 }
 
-/**
- * Scoped Styles
- */
+/* ================= Styles ================= */
+
 function StyleSheet() {
   return (
     <style>{`
       :root {
-        --bg: #ffffff;
-        --text: #111;
-        --card-bg: #f4f4f5;
-      }
-
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #0f1115;
-          --text: #e5e7eb;
-          --card-bg: #1a1d23;
-        }
+        --bg: #0f1115;
+        --text: #e5e7eb;
       }
 
       body {
@@ -148,96 +128,89 @@ function StyleSheet() {
 
       /* Hero */
       .hero {
-        padding: 100px 24px 20px;
+        padding: 120px 24px 40px;
         text-align: center;
       }
 
       .hero h1 {
-        font-size: clamp(2.5rem, 6vw, 4rem);
-        margin: 0;
+        font-size: clamp(3rem, 7vw, 4.5rem);
         font-weight: 800;
+        margin: 0;
       }
 
       .hero p {
-        max-width: 600px;
-        margin: 5px auto;
+        margin-top: 10px;
         opacity: 0.8;
-        font-size: 1.1rem;
+        font-size: 1.15rem;
       }
 
+      /* CTA */
       .cta-wrapper {
         display: flex;
         justify-content: center;
-        margin-top: 40px;
+        margin-bottom: 80px;
       }
 
       .cta-button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 16px 36px;
+        padding: 16px 40px;
+        border-radius: 999px;
         font-size: 1.1rem;
         font-weight: 600;
         text-decoration: none;
-        border-radius: 999px;
         color: white;
         background: linear-gradient(135deg, #0d63f8, #0cdcf7);
-        transition: background 0.3s ease;
+        box-shadow: 0 20px 40px rgba(13,99,248,0.35);
       }
 
-      .hint {
-        display: inline-block;
-        margin-top: 40px;
-        margin-bottom: 32px;
-        opacity: 0.6;
-        font-size: 0.9rem;
-      }
-
-      /* Scroll Section */
+      /* Scroll */
       .scroll-section {
-        padding-top: 120px;
+        padding-bottom: 120px;
       }
 
       ul {
         display: flex;
-        gap: 100px;
-        list-style: none;
-        height: 300px;
-        overflow-x: auto;
-        padding: 40px 40px;
-        margin: 0 0;
-      }
-
-      li {
-        flex: 0 0 280px;
-        border-radius: 28px;
-        padding: 28px;
-        color: white;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-        box-shadow: 0 30px 60px rgba(0,0,0,0.25);
-        transition: transform 0.25s ease, box-shadow 0.25s ease;
-      }
-
-      li h2 {
-        margin: auto;
-        justify-content: center;
-        font-size: 2.5rem;
-      }
-
-      li p {
+        gap: 36px;
+        padding: 40px;
         margin: 0;
-        opacity: 0.9;
-        font-size: 1.2rem;
+        list-style: none;
+        overflow-x: auto;
       }
 
-      /* Card colors */
-      .pink { background: #ff0088; }
-      .purple { background: #dd00ee; }
-      .violet { background: #9911ff; }
-      .blue { background: #0d63f8; }
-      .cyan { background: #0cdcf7; }
+      .card {
+        flex: 0 0 260px;
+        height: 360px;
+        border-radius: 24px;
+        background-size: cover;
+        background-position: center;
+        position: relative;
+        box-shadow: 0 30px 60px rgba(0,0,0,0.35);
+        overflow: hidden;
+      }
+
+      .card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to top,
+          rgba(0,0,0,0.65),
+          rgba(0,0,0,0.15)
+        );
+      }
+
+      .overlay {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        z-index: 2;
+      }
+
+      .overlay h2 {
+        margin: 0;
+        font-size: 3rem;
+        font-weight: 700;
+        color: white;
+      }
 
       /* Scrollbar */
       ::-webkit-scrollbar {
@@ -245,7 +218,7 @@ function StyleSheet() {
       }
 
       ::-webkit-scrollbar-thumb {
-        background: #888;
+        background: #555;
         border-radius: 999px;
       }
     `}</style>
