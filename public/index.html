@@ -1,20 +1,26 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>ASL Demo</title>
+  <meta charset="UTF-8">
+  <title>ASL Keypoint Demo</title>
   <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      font-family: sans-serif;
+      background: #f5f5f5;
+    }
     video, canvas {
       position: absolute;
-      top: 0;
-      left: 0;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      max-width: 80%;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
     }
   </style>
 </head>
 <body>
-
-  <video id="webcam" autoplay playsinline muted></video>
-  <canvas id="overlay"></canvas>
-
-  <script src="webcam.js"></script>
-</body>
-</html>

@@ -1,25 +1,65 @@
-async function startWebcam() {
-  const video = document.getElementById("webcam");
-  const canvas = document.getElementById("overlay");
+import { connectors, streams } from "@roboflow/inference-sdk";
 
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user" },
-      audio: false
-    });
+// Grab video & canvas elements
+const video = document.getElementById("video");
+const canvas = document.getElementById("overlay");
+const ctx = canvas.getContext("2d");
 
-    video.srcObject = stream;
+// Start webcam
+async function startCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+  video.srcObject = stream;
 
-    video.onloadedmetadata = () => {
-      video.play();
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-    };
+  // Wait for metadata so we know video dimensions
+  await new Promise((resolve) => {
+    video.onloadedmetadata = () => resolve();
+  });
 
-  } catch (err) {
-    console.error("Webcam error:", err);
-    alert("Could not access webcam");
-  }
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  startRoboflowStream();
 }
 
-startWebcam();
+// Connect webcam to Roboflow via your server proxy
+async function startRoboflowStream() {
+  // Proxy endpoint (server adds API key)
+  const connector = connectors.withProxyUrl("/api/init-webrtc");
+
+  // Your Roboflow workspace & workflow
+  const wrtcParams = {
+    workspaceName: "sign-language-igzel-nghdm",
+    workflowId: "1",
+    imageInputName: "image",
+    streamOutputNames: [],
+    dataOutputNames: ["predictions"]
+  };
+
+  // Start streaming
+  const rfConnection = await streams.useStream(video, connector, {
+    wrtcParams,
+    onData: (data) => {
+      // `data.predictions` contains keypoints / bounding boxes
+      if (data.predictions) drawKeypoints(data.predictions);
+    }
+  });
+}
+
+// Draw keypoints overlay
+function drawKeypoints(predictions) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  predictions.forEach((pred) => {
+    if (!pred.x || !pred.y) return;
+    const x = pred.x * canvas.width;
+    const y = pred.y * canvas.height;
+
+    ctx.fillStyle = "red";
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, 2 * Math.PI);
+    ctx.fill();
+  });
+}
+
+// Start everything
+startCamera();
