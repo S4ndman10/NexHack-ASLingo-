@@ -305,19 +305,59 @@
       box-shadow: 0 0 0 2px var(--text);
     }
 
-    /* Animations */
-    @keyframes pop {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.2); }
-      100% { transform: scale(1); }
+    /* Confetti Canvas */
+    #confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
     }
 
-    .confetti {
+    /* Score Modal */
+    .modal-overlay {
+      display: none;
       position: fixed;
-      width: 10px;
-      height: 10px;
-      background-color: #f00;
-      animation: fall linear forwards;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(5px);
+    }
+    
+    .modal-card {
+      background: var(--surface);
+      padding: 40px;
+      border-radius: 32px;
+      text-align: center;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    
+    .final-score {
+      font-size: 5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 10px 0;
+    }
+    
+    .final-msg {
+      font-size: 1.5rem;
+      color: var(--text-secondary);
+      margin-bottom: 30px;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
     }
 
   </style>
@@ -378,19 +418,28 @@
       <!-- Quiz Interface (Hidden in Practice) -->
       <div id="quizInterface" class="quiz-overlay">
         <div style="display: flex; justify-content: space-between; width: 100%; align-items: baseline;">
-           <span style="font-size: 1.2rem; font-weight: 500;">Round <span id="quizRound">1</span>/10</span>
+           <div style="display: flex; justify-content: space-between; width: 100%; align-items: baseline; padding: 0 20px; margin-bottom: 10px;">
            <span style="font-size: 1.5rem; font-weight: 700; color: var(--success);">Score: <span id="quizScore">0</span></span>
         </div>
         
-        <div style="margin: 20px 0; text-align: center;">
+        <div style="margin: 10px 0; text-align: center;">
           <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 4px;">SIGN THIS LETTER</div>
           <div class="quiz-target" id="quizTargetLetter">A</div>
         </div>
 
-        <div class="timer-bar">
+        <div class="timer-bar" style= "margin-bottom: 20px;">
           <div class="timer-fill" id="timerFill"></div>
         </div>
       </div>
+
+      <h2 id="camTitle">Camera Feed</h2>
+        <div class="camera-container">
+          <video class="input_video" playsinline></video>
+          <canvas class="output_canvas"></canvas>
+          <div class="prediction-overlay">
+            Prediction: <span id="predLabel">?</span> (<span id="confLabel">0%</span>)
+          </div>
+        </div>
 
       <div id="camControls" style="margin-top: 16px; width: 100%;">
         <button id="startCamBtn" class="btn-primary" style="width: 100%;">Start Camera</button>
@@ -419,6 +468,7 @@
       quizMaxRounds: 10,
       quizTimer: null,
       quizTimeLeft: 10,
+      ignoreInput: false,
       // Practice specific
       completedLetters: new Set(),
       isPaused: false
@@ -448,6 +498,13 @@
       quizScore: document.getElementById('quizScore'),
       quizTarget: document.getElementById('quizTargetLetter'),
       timerFill: document.getElementById('timerFill'),
+
+      //Modal
+      scoreModal: document.getElementById('scoreModal'),
+      finalScore: document.getElementById('finalScoreVal'),
+      finalMsg: document.getElementById('finalMsg'),
+      restartBtn: document.getElementById('restartQuizBtn'),
+      closeModalBtn: document.getElementById('closeModalBtn'),
 
       // Cam
       video: document.querySelector('.input_video'),
@@ -480,6 +537,16 @@
       els.returnBtn.onclick = () => window.location.href = '/';
       els.startBtn.onclick = startCamera;
 
+      els.restartBtn.onclick = () => {
+        els.scoreModal.style.display = 'none';
+        startQuiz();
+      };
+      
+      els.closeModalBtn.onclick = () => {
+        els.scoreModal.style.display = 'none';
+        setMode('practice');
+      };
+
       // Initial State
       setMode('practice');
       setTarget('A');
@@ -492,6 +559,9 @@
       // Update UI Tabs
       els.modePractice.className = `mode-btn ${mode === 'practice' ? 'active' : ''}`;
       els.modeQuiz.className = `mode-btn ${mode === 'quiz' ? 'active' : ''}`;
+
+      //Reset States
+      STATE.ignoreInput = false;
 
       if (mode === 'practice') {
         // Show Practice UI
@@ -577,6 +647,14 @@
       // Update UI
       updateQuizUI();
       
+      STATE.ignoreInput = true;
+      els.quizTarget.style.opacity = "0.5"; // Visual cue
+      
+      setTimeout(() => {
+        STATE.ignoreInput = false;
+        els.quizTarget.style.opacity = "1";
+      }, 2000);
+
       // Start Timer
       STATE.quizTimeLeft = 10;
       startTimer();
@@ -614,24 +692,55 @@
     }
 
     function endQuiz() {
-      alert(`Quiz Finished!\nYour Score: ${STATE.score}/${STATE.quizMaxRounds * 10}`);
-      setMode('practice'); // Go back to practice
+      // Show Modal
+      els.scoreModal.style.display = 'flex';
+      els.finalScore.innerText = STATE.score;
+      
+      const maxScore = STATE.quizMaxRounds * 10;
+      const pct = STATE.score / maxScore;
+      
+      let msg = "Keep practicing!";
+      if (pct === 1) msg = "PERFECT SCORE! 🏆";
+      else if (pct >= 0.8) msg = "Amazing job! 🌟";
+      else if (pct >= 0.5) msg = "Good effort! 👍";
+      
+      els.finalMsg.innerText = msg;
+      
+      // Celebration if score is high
+      if (pct >= 0.5) {
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      }
     }
 
     function flashFeedback(success) {
       const color = success ? 'var(--success)' : '#ff0088'; // Green or Red
       els.quizTarget.style.color = color;
       els.quizTarget.innerText = success ? "✓" : "✗";
+      if (success) {
+        // Mini confetti burst for correct answers
+        confetti({
+          particleCount: 30,
+          spread: 50,
+          origin: { y: 0.7 },
+          colors: ['#00c853', '#ffffff'] // Green/White theme
+        });
+      }
     }
 
     /* ================= PREDICTION HANDLER ================= */
     function handleCorrectPrediction() {
       if (STATE.mode === 'quiz') {
         // Quiz Mode Success
+        if (STATE.ignoreInput) return;
         if (STATE.quizTimer) clearInterval(STATE.quizTimer);
         STATE.score += 10;
         updateQuizUI();
         flashFeedback(true);
+        STATE.ignoreInput = true;
         setTimeout(nextQuizQuestion, 1000); // Wait 1s then next
         
       } else {
@@ -644,7 +753,11 @@
         // Visuals
         const btn = document.querySelector(`.key-btn[data-letter="${STATE.target}"]`);
         if (btn) btn.classList.add('success'); // Pulse animation
-        
+        confetti({
+          particleCount: 50,
+          spread: 60,
+          origin: { y: 0.7 }
+        });
         // Freeze
         STATE.isPaused = true;
         els.pausedOverlay.style.display = 'block';
@@ -744,8 +857,8 @@
       hands.setOptions({
         maxNumHands: 1,
         modelComplexity: 1,
-        minDetectionConfidence: 0.7,
-        minTrackingConfidence: 0.5
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.8
       });
 
       hands.onResults(onResults);
@@ -788,7 +901,7 @@
 
         // Hold-to-confirm logic
         if (
-          result.label === STATE.target &&
+          STATE.ignoreInput && result.label === STATE.target &&
           result.confidence >= 0.6
         ) {
           const now = Date.now();
