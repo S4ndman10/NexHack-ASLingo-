@@ -8,33 +8,27 @@
   <style>
     body { font-family: system-ui, Arial; margin: 16px; }
     .row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
-    video
-    canvas {transform: rotateY(180deg);
-    -webkit-transform:rotateY(180deg); /* Safari and Chrome */
-    -moz-transform:rotateY(180deg); /* Firefox */ width: 640px; height: 480px; background: #111; border-radius: 8px; }
+    video, canvas { width: 640px; height: 480px; background: #111; border-radius: 8px; }
+    .input_video { display: none; }
     button { padding: 10px 14px; font-size: 14px; cursor: pointer; }
     pre { background: #f5f5f5; padding: 10px; border-radius: 8px; white-space: pre-wrap; }
   </style>
 
-  <!-- MediaPipe libraries (CDN) --> 
-  <!--This imports the library for hand skeleton assignment-->
+  <!-- MediaPipe libraries (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-
-
 </head>
 <body>
-  <!--We work on the body of the website, where the webcam imput is shown.-->
   <h2>Webcam + Hand Tracking (MediaPipe Hands)</h2>
   <p>Click <b>Start Camera</b>. If you see the hand skeleton, tracking works.</p>
-  <!--Once we press the start camera button, we can take webcam input for the website. We feed this input into the hand skeleton drawings-->
+
   <button id="startBtn">Start Camera</button>
   <span id="status" style="margin-left:10px;">Status: idle</span>
 
   <div class="row" style="margin-top:16px;">
-    <video class="input_video" playsinline></video> <!--Input video is the raw video-->
-    <canvas class="output_canvas" width="640" height="480"></canvas> <!--Canvas is the skeleton hand-->
+    <video class="input_video" playsinline></video>
+    <canvas class="output_canvas" width="640" height="480"></canvas>
   </div>
 
   <h3>Debug</h3>
@@ -64,28 +58,42 @@
 
     // 2) This runs every time MediaPipe finishes processing a frame
     function onResults(results) {
-      // Draw the camera frame into the canvas
       canvasCtx.save();
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.translate(canvasElement.width, 0);
+      canvasCtx.scale(-1, 1);
       canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
       // If a hand is found, draw landmarks + connectors
       const hasHand = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
 
       if (hasHand) {
-        const landmarks = results.multiHandLandmarks[0];
-        const handedness = results.multiHandedness?.[0]?.label ?? "Unknown";
+        const handCount = results.multiHandLandmarks.length;
+        const lines = [];
 
-        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { lineWidth: 4 });
-        drawLandmarks(canvasCtx, landmarks, { lineWidth: 2 });
+        for (let i = 0; i < handCount; i++) {
+          const landmarks = results.multiHandLandmarks[i];
+          const rawHandedness = results.multiHandedness?.[i]?.label ?? "Unknown";
+          const handedness =
+            rawHandedness === "Left"
+              ? "Right"
+              : rawHandedness === "Right"
+              ? "Left"
+              : rawHandedness;
 
-        // Minimal debug info
-        debugEl.textContent =
-          `Hand: ${handedness}\n` +
-          `Landmarks: ${landmarks.length} (should be 21)\n` +
-          `Wrist (0): x=${landmarks[0].x.toFixed(3)}, y=${landmarks[0].y.toFixed(3)}, z=${landmarks[0].z.toFixed(3)}\n` +
-          `Index Tip (8): x=${landmarks[8].x.toFixed(3)}, y=${landmarks[8].y.toFixed(3)}, z=${landmarks[8].z.toFixed(3)}\n`;
-        statusEl.textContent = "Status: tracking (hand detected)";
+          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { lineWidth: 4 });
+          drawLandmarks(canvasCtx, landmarks, { lineWidth: 2 });
+
+          lines.push(
+            `Hand ${i + 1}: ${handedness}`,
+            `  Landmarks: ${landmarks.length} (should be 21)`,
+            `  Wrist (0): x=${landmarks[0].x.toFixed(3)}, y=${landmarks[0].y.toFixed(3)}, z=${landmarks[0].z.toFixed(3)}`,
+            `  Index Tip (8): x=${landmarks[8].x.toFixed(3)}, y=${landmarks[8].y.toFixed(3)}, z=${landmarks[8].z.toFixed(3)}`
+          );
+        }
+
+        debugEl.textContent = lines.join("\n");
+        statusEl.textContent = `Status: tracking (${handCount} hand${handCount > 1 ? "s" : ""} detected)`;
       } else {
         debugEl.textContent = "No hand detected. Put your hand in front of the camera.";
         statusEl.textContent = "Status: running (no hand)";
